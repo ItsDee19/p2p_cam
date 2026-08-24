@@ -1,0 +1,768 @@
+<title>P2P Camera Localization</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFEE;
+  --surface:#FBFCFB;
+  --surface-2:#F3F5F4;
+  --ink:#10151A;
+  --ink-2:#333C45;
+  --muted:#5C6771;
+  --rule:#D2D8D6;
+  --rule-strong:#B0BAB6;
+  --accent:#BF2222;
+  --accent-soft:#F8E9E9;
+  --ctrl:#0E6F6E;
+  --ctrl-soft:#E1EFEE;
+  --warn:#8E5A00;
+  --warn-soft:#F7EEDC;
+
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"IBM Plex Sans","Segoe UI",Helvetica,Arial,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+
+  --measure:70ch;
+  --rail:7.5rem;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0C0F11;
+    --surface:#14181B;
+    --surface-2:#1B2024;
+    --ink:#E8EDEA;
+    --ink-2:#C2CBC7;
+    --muted:#8C979B;
+    --rule:#282F34;
+    --rule-strong:#3C464D;
+    --accent:#FF6B6B;
+    --accent-soft:#2B1719;
+    --ctrl:#4FBFBB;
+    --ctrl-soft:#0F2A2A;
+    --warn:#D9A441;
+    --warn-soft:#2A2213;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0C0F11;
+  --surface:#14181B;
+  --surface-2:#1B2024;
+  --ink:#E8EDEA;
+  --ink-2:#C2CBC7;
+  --muted:#8C979B;
+  --rule:#282F34;
+  --rule-strong:#3C464D;
+  --accent:#FF6B6B;
+  --accent-soft:#2B1719;
+  --ctrl:#4FBFBB;
+  --ctrl-soft:#0F2A2A;
+  --warn:#D9A441;
+  --warn-soft:#2A2213;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:16px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+.doc{max-width:1180px;margin:0 auto;padding:0 1.5rem 6rem}
+
+/* ---------- masthead ---------- */
+.mast{
+  border-bottom:2px solid var(--ink);
+  padding:2.75rem 0 1.1rem;
+  margin-bottom:2.5rem;
+}
+.mast-top{
+  display:flex;flex-wrap:wrap;gap:1rem 2rem;
+  align-items:baseline;justify-content:space-between;
+  font-family:var(--f-mono);font-size:.7rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);
+  padding-bottom:2rem;
+}
+.mast h1{
+  font-family:var(--f-display);font-weight:700;
+  font-size:clamp(2rem,5.4vw,3.35rem);
+  line-height:1.02;letter-spacing:-.028em;
+  margin:0 0 .55rem;text-wrap:balance;max-width:20ch;
+}
+.mast .deck{
+  font-size:1.06rem;color:var(--ink-2);margin:0 0 1.9rem;
+  max-width:60ch;
+}
+.meta{
+  display:grid;gap:.85rem 2.5rem;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  border-top:1px solid var(--rule);padding-top:1.1rem;
+}
+.meta div{display:flex;flex-direction:column;gap:.2rem}
+.meta dt,.lbl{
+  font-family:var(--f-mono);font-size:.66rem;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--muted);
+}
+.meta dd{margin:0;font-size:.9rem;font-weight:500;color:var(--ink)}
+
+/* ---------- section layout with clause rail ---------- */
+section{
+  display:grid;
+  grid-template-columns:var(--rail) minmax(0,1fr);
+  gap:0 2.5rem;
+  padding:2.9rem 0;
+  border-top:1px solid var(--rule);
+}
+section:first-of-type{border-top:none}
+.rail{
+  font-family:var(--f-mono);font-size:.7rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);
+  padding-top:.5rem;
+}
+.rail b{display:block;color:var(--accent);font-weight:500;font-size:1.05rem;letter-spacing:0}
+.body{min-width:0;max-width:var(--measure)}
+.body.wide{max-width:none}
+
+h2{
+  font-family:var(--f-display);font-weight:600;
+  font-size:clamp(1.35rem,2.6vw,1.72rem);
+  letter-spacing:-.018em;line-height:1.18;
+  margin:0 0 1.1rem;text-wrap:balance;
+}
+h3{
+  font-family:var(--f-display);font-weight:600;
+  font-size:1.02rem;letter-spacing:-.005em;
+  margin:2.1rem 0 .6rem;
+}
+p{margin:0 0 1.05rem}
+.body > p:last-child{margin-bottom:0}
+strong{font-weight:600}
+a{color:var(--accent)}
+
+ul.plain{list-style:none;padding:0;margin:0 0 1.1rem;display:flex;flex-direction:column;gap:.6rem}
+ul.plain li{padding-left:1.15rem;position:relative}
+ul.plain li::before{
+  content:"";position:absolute;left:0;top:.62em;
+  width:.42rem;height:.42rem;background:var(--rule-strong);
+}
+
+/* ---------- callout ---------- */
+.note{
+  border-left:3px solid var(--accent);
+  background:var(--accent-soft);
+  padding:1rem 1.15rem;margin:0 0 1.2rem;
+  font-size:.94rem;
+}
+.note.ctrl{border-left-color:var(--ctrl);background:var(--ctrl-soft)}
+.note p{margin:0}
+.note p + p{margin-top:.6rem}
+.note .lbl{display:block;margin-bottom:.35rem}
+
+/* ---------- figures ---------- */
+figure{margin:1.6rem 0;padding:0}
+.figframe{
+  background:var(--surface);border:1px solid var(--rule);
+  padding:1.4rem;overflow-x:auto;
+}
+figure svg{display:block;width:100%;min-width:660px;height:auto;color:var(--ink)}
+/* diagram type is driven here, not by presentation attributes */
+figure svg text{font-family:var(--f-mono)}
+figure svg text.t-display{font-family:var(--f-display)}
+figure svg text.t-body{font-family:var(--f-body)}
+figcaption{
+  margin-top:.75rem;font-size:.83rem;color:var(--muted);
+  max-width:74ch;line-height:1.55;
+}
+
+/* ---------- tables ---------- */
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);background:var(--surface);margin:0 0 1.1rem}
+table{border-collapse:collapse;width:100%;min-width:540px;font-size:.9rem}
+th,td{padding:.72rem .9rem;text-align:left;border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{
+  font-family:var(--f-mono);font-size:.66rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--muted);font-weight:500;
+  background:var(--surface-2);white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.total td{border-top:2px solid var(--ink);background:var(--surface-2);font-weight:600}
+tr.total td.num{font-size:1rem}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.64rem;
+  letter-spacing:.09em;text-transform:uppercase;
+  padding:.16rem .44rem;border:1px solid currentColor;white-space:nowrap;
+}
+.pill.hi{color:var(--accent)}
+.pill.md{color:var(--warn)}
+.pill.lo{color:var(--ctrl)}
+
+/* ---------- timeline ---------- */
+.tl{display:flex;flex-direction:column;gap:.5rem;margin:1.3rem 0 .8rem}
+.tl-scale,.tl-row{
+  display:grid;grid-template-columns:11rem minmax(0,1fr);
+  gap:1rem;align-items:center;
+}
+.tl-scale span:first-child{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.tl-ticks{display:grid;grid-template-columns:repeat(28,1fr);font-family:var(--f-mono);font-size:.62rem;color:var(--muted)}
+.tl-ticks i{grid-column:span 4;font-style:normal;border-left:1px solid var(--rule);padding-left:.3rem}
+.tl-name{font-size:.86rem;font-weight:600;line-height:1.3}
+.tl-name em{display:block;font-style:normal;font-weight:400;font-size:.74rem;color:var(--muted);font-family:var(--f-mono)}
+.tl-track{display:grid;grid-template-columns:repeat(28,1fr);background:var(--surface-2);border:1px solid var(--rule);height:2.1rem;align-items:center}
+.tl-bar{
+  height:100%;display:flex;align-items:center;padding:0 .55rem;
+  font-family:var(--f-mono);font-size:.68rem;color:var(--surface);
+  background:var(--ctrl);white-space:nowrap;overflow:hidden;
+}
+.tl-bar.p0{background:var(--muted)}
+.tl-bar.p1{background:var(--accent)}
+.tl-bar.p3{background:var(--ink-2)}
+
+/* ---------- question list ---------- */
+ol.qs{list-style:none;counter-reset:q;padding:0;margin:0;display:flex;flex-direction:column;gap:1rem}
+ol.qs li{counter-increment:q;display:grid;grid-template-columns:2.1rem minmax(0,1fr);gap:.9rem}
+ol.qs li::before{
+  content:"Q" counter(q);font-family:var(--f-mono);font-size:.72rem;
+  color:var(--accent);padding-top:.22rem;
+}
+ol.qs b{display:block;font-weight:600;margin-bottom:.15rem}
+ol.qs span{font-size:.9rem;color:var(--muted)}
+
+footer{
+  border-top:2px solid var(--ink);margin-top:3rem;padding-top:1.2rem;
+  font-family:var(--f-mono);font-size:.68rem;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--muted);
+  display:flex;flex-wrap:wrap;gap:.6rem 2rem;justify-content:space-between;
+}
+
+@media (max-width:900px){
+  section{grid-template-columns:1fr;gap:0}
+  .rail{padding:0 0 .9rem;display:flex;align-items:baseline;gap:.7rem}
+  .rail b{font-size:.95rem}
+  .tl-scale,.tl-row{grid-template-columns:1fr;gap:.3rem}
+  .tl-row{margin-bottom:.7rem}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+
+<div class="doc">
+
+<header class="mast">
+  <div class="mast-top">
+    <span>less AI &nbsp;·&nbsp; Hyderabad / Bangalore</span>
+    <span>Ref LA&#8209;2026&#8209;0819 &nbsp;·&nbsp; Rev A</span>
+  </div>
+  <h1>Wi‑Fi Camera Platform: Localization Proposal</h1>
+  <p class="deck">A peer‑to‑peer Android and iOS camera application, with the supporting
+  infrastructure moved onto Indian soil — scoped, sequenced and costed against
+  the requirements set out on 19 August 2026.</p>
+  <dl class="meta">
+    <div><dt>Prepared for</dt><dd>Sanjay Pal</dd></div>
+    <div><dt>Prepared by</dt><dd>Gaurav Purohit · Rohan Purohit</dd></div>
+    <div><dt>Date</dt><dd>20 August 2026</dd></div>
+    <div><dt>Market</dt><dd>India</dd></div>
+    <div><dt>Status</dt><dd>For discussion</dd></div>
+  </dl>
+</header>
+
+<!-- 1 ................................................................ -->
+<section>
+  <div class="rail"><b>01</b>Scope</div>
+  <div class="body">
+    <h2>What we understood, and what we have priced</h2>
+    <p>A Wi‑Fi camera application for <strong>Android and iOS</strong>, built peer‑to‑peer
+    with no cloud video storage, giving the user a live feed, image capture written to the
+    camera's own storage, and two‑way audio. Feature and visual parity is measured against
+    the reference application currently on both app stores. The driver is a government
+    mandate to bring the product's infrastructure in‑country, alongside your move to
+    in‑house PCB assembly.</p>
+
+    <p>Two points we have deliberately <em>excluded</em>, and would like confirmed:</p>
+    <ul class="plain">
+      <li><strong>Desktop applications.</strong> Windows and macOS clients appeared in the
+      brief circulated to us but were not part of the requirement you described. They are
+      not priced here. If they are in scope, they are a separate track — the media stack
+      ports across, the UI does not.</li>
+      <li><strong>Anything outside this camera.</strong> No other product line, sensor
+      or platform is included in this proposal.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 2 ................................................................ -->
+<section>
+  <div class="rail"><b>02</b>Architecture</div>
+  <div class="body wide">
+    <h2>Cloud‑free video, and the thin control plane nobody mentions</h2>
+    <div style="max-width:var(--measure)">
+    <p>Your reasoning for peer‑to‑peer is correct: cloud video storage is the line item
+    that scales with your unit count and never stops growing. We are not proposing to
+    change that. Video and audio go directly between the camera and the phone, and never
+    land on a server we operate.</p>
+
+    <div class="note">
+      <span class="lbl">Worth being precise about</span>
+      <p>“No cloud” describes the <strong>media path</strong>, not the whole system. Every
+      peer‑to‑peer camera platform in the market — including the one in your product
+      today — runs an always‑on control plane. Something has to translate a camera's UID
+      into its current address, help two devices behind home routers find each other,
+      and wake a phone whose app has been killed. A vendor who tells you the server count
+      is zero has either not built one of these before, or is quietly planning to keep
+      using someone else's.</p>
+    </div>
+
+    <p>The honest description of what we would build is <strong>a cloud‑free media path
+    with a thin, India‑hosted control plane</strong>. That control plane is small, cheap,
+    and — critically for your mandate — entirely under your control.</p>
+    </div>
+
+    <figure>
+      <div class="figframe">
+        <svg viewBox="0 0 880 470" role="img" aria-label="Architecture diagram: video and audio travel directly between camera and phone, encrypted end to end; when the network blocks a direct connection the same encrypted stream is relayed through a TURN server; a small India-hosted control plane handles UID registry, signalling, STUN, TURN, push notifications and firmware updates.">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/>
+            </marker>
+            <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--ctrl)"/>
+            </marker>
+          </defs>
+
+          <!-- camera -->
+          <rect x="40" y="40" width="210" height="112" fill="var(--surface-2)" stroke="var(--ink)" stroke-width="1.5"/>
+          <text x="58" y="68" class="t-display" font-size="14" font-weight="600" fill="var(--ink)">Wi‑Fi Camera</text>
+          <text x="58" y="90" font-family="var(--f-mono)" font-size="10.5" fill="var(--muted)">H.264 encode · 2‑way audio</text>
+          <text x="58" y="107" font-family="var(--f-mono)" font-size="10.5" fill="var(--muted)">SD card — images &amp; clips</text>
+          <text x="58" y="124" font-family="var(--f-mono)" font-size="10.5" fill="var(--muted)">per‑unit key (burned at flash)</text>
+          <text x="58" y="141" font-family="var(--f-mono)" font-size="10.5" fill="var(--muted)">on the customer's home LAN</text>
+
+          <!-- phone -->
+          <rect x="630" y="40" width="210" height="112" fill="var(--surface-2)" stroke="var(--ink)" stroke-width="1.5"/>
+          <text x="648" y="68" class="t-display" font-size="14" font-weight="600" fill="var(--ink)">Android / iOS app</text>
+          <text x="648" y="90" font-family="var(--f-mono)" font-size="10.5" fill="var(--muted)">live view · talk‑back</text>
+          <text x="648" y="107" font-family="var(--f-mono)" font-size="10.5" fill="var(--muted)">pairing &amp; Wi‑Fi onboarding</text>
+          <text x="648" y="124" font-family="var(--f-mono)" font-size="10.5" fill="var(--muted)">motion alerts</text>
+          <text x="648" y="141" font-family="var(--f-mono)" font-size="10.5" fill="var(--muted)">anywhere on the internet</text>
+
+          <!-- direct media path -->
+          <line x1="250" y1="79" x2="630" y2="79" stroke="var(--accent)" stroke-width="2.5" marker-start="url(#ar)" marker-end="url(#ar)"/>
+          <text x="440" y="65" text-anchor="middle" font-family="var(--f-mono)" font-size="11" font-weight="500" fill="var(--accent)">video + audio · direct · encrypted end‑to‑end</text>
+          <text x="440" y="98" text-anchor="middle" font-family="var(--f-mono)" font-size="10" fill="var(--muted)">75–85% of sessions</text>
+
+          <!-- relay elbow -->
+          <polyline points="250,133 440,133 440,206 502,206 502,296" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5 4"/>
+          <polyline points="630,133 564,133 564,206 502,206" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="5 4"/>
+          <text x="440" y="228" text-anchor="middle" font-family="var(--f-mono)" font-size="10" fill="var(--accent)">fallback when the network blocks a direct hop</text>
+          <text x="440" y="243" text-anchor="middle" font-family="var(--f-mono)" font-size="10" fill="var(--muted)">relay carries ciphertext — it cannot see the video</text>
+
+          <!-- control plane -->
+          <rect x="40" y="270" width="800" height="176" fill="none" stroke="var(--ctrl)" stroke-width="1.5"/>
+          <rect x="40" y="270" width="286" height="24" fill="var(--ctrl)"/>
+          <text x="54" y="287" font-family="var(--f-mono)" font-size="10.5" font-weight="500" letter-spacing="1" fill="var(--surface)">CONTROL PLANE — HOSTED IN INDIA</text>
+
+          <!-- control plane services -->
+          <g font-family="var(--f-mono)" font-size="10" fill="var(--ink)">
+            <rect x="64" y="322" width="114" height="70" fill="var(--ctrl-soft)" stroke="var(--ctrl)"/>
+            <text x="121" y="350" text-anchor="middle">UID</text><text x="121" y="365" text-anchor="middle">registry</text>
+
+            <rect x="191" y="322" width="114" height="70" fill="var(--ctrl-soft)" stroke="var(--ctrl)"/>
+            <text x="248" y="350" text-anchor="middle">signalling</text><text x="248" y="365" text-anchor="middle">rendezvous</text>
+
+            <rect x="318" y="322" width="114" height="70" fill="var(--ctrl-soft)" stroke="var(--ctrl)"/>
+            <text x="375" y="350" text-anchor="middle">STUN</text><text x="375" y="365" text-anchor="middle">NAT discovery</text>
+
+            <rect x="445" y="322" width="114" height="70" fill="var(--accent-soft)" stroke="var(--accent)"/>
+            <text x="502" y="350" text-anchor="middle" fill="var(--accent)">TURN relay</text><text x="502" y="365" text-anchor="middle" fill="var(--accent)">media fallback</text>
+
+            <rect x="572" y="322" width="114" height="70" fill="var(--ctrl-soft)" stroke="var(--ctrl)"/>
+            <text x="629" y="350" text-anchor="middle">push gateway</text><text x="629" y="365" text-anchor="middle">FCM / APNs</text>
+
+            <rect x="699" y="322" width="114" height="70" fill="var(--ctrl-soft)" stroke="var(--ctrl)"/>
+            <text x="756" y="350" text-anchor="middle">signed OTA</text><text x="756" y="365" text-anchor="middle">firmware</text>
+          </g>
+          <text x="440" y="422" text-anchor="middle" font-family="var(--f-mono)" font-size="10" fill="var(--muted)">also: account ↔ device binding, sharing, revocation</text>
+
+          <!-- control links -->
+          <line x1="121" y1="152" x2="121" y2="322" stroke="var(--ctrl)" stroke-width="1.2" marker-end="url(#at)"/>
+          <text x="131" y="240" font-family="var(--f-mono)" font-size="10" fill="var(--ctrl)">registers UID</text>
+          <text x="131" y="254" font-family="var(--f-mono)" font-size="10" fill="var(--ctrl)">+ heartbeat</text>
+
+          <line x1="756" y1="152" x2="756" y2="322" stroke="var(--ctrl)" stroke-width="1.2" marker-end="url(#at)"/>
+          <text x="746" y="240" text-anchor="end" font-family="var(--f-mono)" font-size="10" fill="var(--ctrl)">resolves UID</text>
+          <text x="746" y="254" text-anchor="end" font-family="var(--f-mono)" font-size="10" fill="var(--ctrl)">auth · push token</text>
+        </svg>
+      </div>
+      <figcaption>The red path is media; the teal path is control. Note that only one box —
+      the TURN relay — ever carries video, and only for sessions the network refuses to
+      connect directly. Because the stream is encrypted between camera and phone, the relay
+      forwards bytes it cannot read. Nothing is stored anywhere on the control plane.</figcaption>
+    </figure>
+
+    <div style="max-width:var(--measure)">
+    <h3>What the control plane costs you</h3>
+    <p>This is the number the architecture is really about. Indicative monthly running cost
+    at <span class="mono">50,000</span> active devices, hosted in India:</p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Service</th><th>Sizing note</th><th class="num">₹ / month</th></tr></thead>
+        <tbody>
+          <tr><td>Registry, signalling, API</td><td>Stateless nodes + managed Postgres, multi‑AZ</td><td class="num">55,000</td></tr>
+          <tr><td>STUN</td><td>Negligible bandwidth; co‑located</td><td class="num">included</td></tr>
+          <tr><td>TURN relay</td><td>~20% of sessions relayed; bare‑metal in‑country</td><td class="num">85,000</td></tr>
+          <tr><td>Push gateway</td><td>FCM and APNs carry no per‑message fee</td><td class="num">0</td></tr>
+          <tr><td>Signed OTA distribution</td><td>Object storage + CDN egress</td><td class="num">25,000</td></tr>
+          <tr><td>Monitoring, logs, backups</td><td>Retention 90 days</td><td class="num">20,000</td></tr>
+          <tr class="total"><td>Total</td><td>≈ ₹3.70 per device per month</td><td class="num">1,85,000</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="max-width:var(--measure)">
+    <p style="font-size:.88rem;color:var(--muted)">For comparison, continuous cloud
+    recording at even modest retention runs ₹60–150 per device per month. At 50,000 units
+    that is the difference between roughly ₹1.9 lakh and ₹30–75 lakh a month. The
+    peer‑to‑peer decision is worth defending — we simply want the residual cost stated
+    honestly rather than discovered in month four. Figures are estimates to be validated in
+    Phase 0 against measured relay rates on Indian carrier networks.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 3 ................................................................ -->
+<section>
+  <div class="rail"><b>03</b>Options</div>
+  <div class="body wide">
+    <h2>Three different projects are hiding behind one request</h2>
+    <div style="max-width:var(--measure)">
+    <p>Today you buy a complete solution from Shenzhen: silicon, firmware, the
+    peer‑to‑peer stack and the app, bundled. “Replace the app” can therefore mean three
+    very different things, at three very different prices — and only two of them satisfy a
+    mandate about infrastructure.</p>
+    </div>
+
+    <figure>
+      <div class="figframe">
+        <svg viewBox="0 0 740 400" role="img" aria-label="Comparison of three localization tracks across four layers. Track A localizes only the mobile apps. Track B localizes the apps and the peer-to-peer control plane and adapts the firmware. Track C localizes all four layers including the PCB.">
+          <g font-family="var(--f-mono)" font-size="10.5" fill="var(--muted)">
+            <text x="8" y="24" font-size="10" letter-spacing="1">LAYER</text>
+            <text x="250" y="24" text-anchor="middle" font-size="10" letter-spacing="1" fill="var(--ink)">TRACK A</text>
+            <text x="440" y="24" text-anchor="middle" font-size="10" letter-spacing="1" fill="var(--accent)">TRACK B</text>
+            <text x="630" y="24" text-anchor="middle" font-size="10" letter-spacing="1" fill="var(--ink)">TRACK C</text>
+            <text x="250" y="38" text-anchor="middle" font-size="9.5">app only</text>
+            <text x="440" y="38" text-anchor="middle" font-size="9.5" fill="var(--accent)">recommended</text>
+            <text x="630" y="38" text-anchor="middle" font-size="9.5">full</text>
+          </g>
+
+          <!-- row labels -->
+          <g font-size="11.5" fill="var(--ink)">
+            <text x="8" y="82" class="t-body">Mobile apps</text>
+            <text x="8" y="152" class="t-body">P2P control plane</text>
+            <text x="8" y="222" class="t-body">Camera firmware</text>
+            <text x="8" y="292" class="t-body">PCB / hardware</text>
+          </g>
+
+          <!-- helper: local = teal fill, vendor = grey outline, adapted = dashed teal -->
+          <g font-family="var(--f-mono)" font-size="10">
+            <!-- Row 1 : apps -->
+            <rect x="160" y="52" width="180" height="56" fill="var(--ctrl-soft)" stroke="var(--ctrl)" stroke-width="1.5"/>
+            <text x="250" y="85" text-anchor="middle" fill="var(--ctrl)">built in India</text>
+            <rect x="350" y="52" width="180" height="56" fill="var(--ctrl-soft)" stroke="var(--ctrl)" stroke-width="1.5"/>
+            <text x="440" y="85" text-anchor="middle" fill="var(--ctrl)">built in India</text>
+            <rect x="540" y="52" width="180" height="56" fill="var(--ctrl-soft)" stroke="var(--ctrl)" stroke-width="1.5"/>
+            <text x="630" y="85" text-anchor="middle" fill="var(--ctrl)">built in India</text>
+
+            <!-- Row 2 : control plane -->
+            <rect x="160" y="122" width="180" height="56" fill="none" stroke="var(--rule-strong)" stroke-width="1.5"/>
+            <text x="250" y="148" text-anchor="middle" fill="var(--muted)">stays with</text>
+            <text x="250" y="163" text-anchor="middle" fill="var(--muted)">Shenzhen vendor</text>
+            <rect x="350" y="122" width="180" height="56" fill="var(--ctrl-soft)" stroke="var(--ctrl)" stroke-width="1.5"/>
+            <text x="440" y="155" text-anchor="middle" fill="var(--ctrl)">built in India</text>
+            <rect x="540" y="122" width="180" height="56" fill="var(--ctrl-soft)" stroke="var(--ctrl)" stroke-width="1.5"/>
+            <text x="630" y="155" text-anchor="middle" fill="var(--ctrl)">built in India</text>
+
+            <!-- Row 3 : firmware -->
+            <rect x="160" y="192" width="180" height="56" fill="none" stroke="var(--rule-strong)" stroke-width="1.5"/>
+            <text x="250" y="218" text-anchor="middle" fill="var(--muted)">stays with</text>
+            <text x="250" y="233" text-anchor="middle" fill="var(--muted)">Shenzhen vendor</text>
+            <rect x="350" y="192" width="180" height="56" fill="none" stroke="var(--ctrl)" stroke-width="1.5" stroke-dasharray="5 4"/>
+            <text x="440" y="218" text-anchor="middle" fill="var(--ctrl)">adapted by us</text>
+            <text x="440" y="233" text-anchor="middle" fill="var(--muted)">needs vendor SDK</text>
+            <rect x="540" y="192" width="180" height="56" fill="var(--ctrl-soft)" stroke="var(--ctrl)" stroke-width="1.5"/>
+            <text x="630" y="225" text-anchor="middle" fill="var(--ctrl)">written in India</text>
+
+            <!-- Row 4 : pcb -->
+            <rect x="160" y="262" width="180" height="56" fill="none" stroke="var(--rule-strong)" stroke-width="1.5"/>
+            <text x="250" y="295" text-anchor="middle" fill="var(--muted)">imported</text>
+            <rect x="350" y="262" width="180" height="56" fill="none" stroke="var(--rule-strong)" stroke-width="1.5"/>
+            <text x="440" y="288" text-anchor="middle" fill="var(--muted)">imported</text>
+            <text x="440" y="303" text-anchor="middle" fill="var(--muted)">(your assembly line)</text>
+            <rect x="540" y="262" width="180" height="56" fill="var(--ctrl-soft)" stroke="var(--ctrl)" stroke-width="1.5"/>
+            <text x="630" y="295" text-anchor="middle" fill="var(--ctrl)">your own board</text>
+          </g>
+
+          <!-- verdict -->
+          <line x1="8" y1="336" x2="732" y2="336" stroke="var(--rule-strong)" stroke-width="1"/>
+          <g font-family="var(--f-mono)" font-size="10.5">
+            <text x="8" y="362" fill="var(--ink)" class="t-body" font-size="11.5">Meets the mandate?</text>
+            <text x="250" y="362" text-anchor="middle" fill="var(--accent)">unlikely</text>
+            <text x="440" y="362" text-anchor="middle" fill="var(--ctrl)">yes, for the app + infra</text>
+            <text x="630" y="362" text-anchor="middle" fill="var(--ctrl)">yes, fully</text>
+            <text x="8" y="384" fill="var(--ink)" class="t-body" font-size="11.5">Elapsed time</text>
+            <text x="250" y="384" text-anchor="middle" fill="var(--muted)">10 weeks</text>
+            <text x="440" y="384" text-anchor="middle" fill="var(--muted)">28 weeks</text>
+            <text x="630" y="384" text-anchor="middle" fill="var(--muted)">12–18 months</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>The difference between the tracks is which layers stop being foreign.
+      Track A produces a new app that still registers with, signals through and updates
+      from the vendor's servers — the traffic and the device identity remain outside India.
+      It is the cheapest and fastest option, and we would rather tell you now that we do
+      not think it satisfies your mandate.</figcaption>
+    </figure>
+
+    <div style="max-width:var(--measure)">
+      <div class="note ctrl">
+        <span class="lbl">Our recommendation</span>
+        <p><strong>Track B</strong>, with Track C as the destination once your own board is
+        running. Track B moves device identity, signalling and updates onto Indian
+        infrastructure you own, while continuing to use the existing module — so you keep
+        selling through the transition rather than stopping the line.</p>
+      </div>
+      <p>Track B has one hard dependency: <strong>access to the module vendor's SDK, or
+      firmware source</strong>. With it, adapting the firmware to point at your servers is
+      routine integration work. Without it, the same outcome requires reverse engineering,
+      and the estimate in section 06 does not hold. Establishing which of those two worlds
+      we are in is the single purpose of Phase 0.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 4 ................................................................ -->
+<section>
+  <div class="rail"><b>04</b>Security</div>
+  <div class="body">
+    <h2>Your assembly line is a security advantage</h2>
+    <p>Budget peer‑to‑peer cameras have a well‑documented reputation: shared default
+    passwords, unauthenticated protocols, predictable device identifiers, unsigned
+    firmware. If your mandate is about securing the product, the app is only where the
+    problem becomes visible — the fixes live in how each unit is provisioned.</p>
+
+    <p>Because you are bringing PCB assembly in‑house, you gain something the bundled
+    vendor solution cannot offer: <strong>the ability to burn a unique key pair into every
+    unit at flashing time</strong>. That single change is what makes the rest possible.</p>
+
+    <ul class="plain">
+      <li><strong>Per‑unit identity, no shared secrets.</strong> Every camera authenticates
+      with its own key. No default password to publish, no credential that compromises the
+      fleet.</li>
+      <li><strong>Encryption from camera to phone.</strong> Media protected end‑to‑end, so
+      the relay in section 02 forwards ciphertext and your infrastructure is never a
+      wiretap point.</li>
+      <li><strong>Signed firmware and secure OTA.</strong> A unit refuses an image that is
+      not signed by your key — the practical defence against fleet‑wide compromise.</li>
+      <li><strong>No secrets in the app binary.</strong> Anything shipped inside an APK is
+      public; the design assumes it will be extracted.</li>
+      <li><strong>Data residency.</strong> Control plane in an Indian region, with the
+      DPDP Act's minimisation principle easy to argue when video never leaves the two
+      endpoints.</li>
+    </ul>
+
+    <div class="note">
+      <span class="lbl">Please confirm</span>
+      <p>We have assumed your mandate relates to security requirements for surveillance
+      camera equipment, alongside the usual BIS and WPC routes. Certification
+      timelines and lab queues drive the launch date more than development does, so
+      knowing the exact notification and your compliance deadline changes how we
+      sequence Phases 2 and 3.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 5 ................................................................ -->
+<section>
+  <div class="rail"><b>05</b>Delivery</div>
+  <div class="body wide">
+    <h2>Four phases, with a working camera in week eight</h2>
+    <div style="max-width:var(--measure)">
+    <p>The plan front‑loads proof. Phase 1 exists so that within two months you are
+    looking at your own hardware streaming live video with working talk‑back through
+    software we wrote — not at a slide describing it.</p>
+    </div>
+
+    <div class="tl" role="table" aria-label="Phase timeline across 28 weeks">
+      <div class="tl-scale"><span>Week</span>
+        <div class="tl-ticks"><i>01</i><i>05</i><i>09</i><i>13</i><i>17</i><i>21</i><i>25</i></div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-name">Phase 0 — Discovery<em>2 weeks</em></div>
+        <div class="tl-track"><div class="tl-bar p0" style="grid-column:1 / span 2">teardown · SDK access · compliance baseline</div></div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-name">Phase 1 — Pilot<em>6 weeks</em></div>
+        <div class="tl-track"><div class="tl-bar p1" style="grid-column:3 / span 6">live view + two‑way audio on your hardware</div></div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-name">Phase 2 — Production<em>14 weeks</em></div>
+        <div class="tl-track"><div class="tl-bar" style="grid-column:9 / span 14">Android &amp; iOS in parallel · control plane · onboarding</div></div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-name">Phase 3 — Hardening<em>6 weeks</em></div>
+        <div class="tl-track"><div class="tl-bar p3" style="grid-column:23 / span 6">field trials · certification support · store release</div></div>
+      </div>
+    </div>
+
+    <div style="max-width:var(--measure)">
+      <h3>What each phase produces</h3>
+      <ul class="plain">
+        <li><strong>Phase 0 — Discovery.</strong> Teardown of the reference application and
+        a network trace showing which endpoints it contacts during pairing and streaming,
+        and where they are hosted — this establishes the baseline your mandate is measured
+        against. Module and SoC identification from sample units, a written answer on SDK
+        availability, and a fixed‑price confirmation of Phase 2.</li>
+        <li><strong>Phase 1 — Pilot.</strong> Live view and two‑way audio, Android, running
+        against a minimal control plane on Indian infrastructure. Measured hole‑punch
+        success and relay rates across Jio, Airtel and common home ISPs — the number that
+        sizes your ongoing cost.</li>
+        <li><strong>Phase 2 — Production.</strong> Both applications to feature parity,
+        Wi‑Fi onboarding, image capture to SD, motion alerts through push, multi‑camera
+        view, sharing and revocation, signed OTA, and the full control plane with
+        monitoring.</li>
+        <li><strong>Phase 3 — Hardening.</strong> Field trials on real units in real homes,
+        security review, documentation and test evidence for certification, and submission
+        to both stores under your developer accounts.</li>
+      </ul>
+
+      <h3>Team</h3>
+      <p>One Android engineer, one iOS engineer, one embedded engineer, one backend
+      engineer, with part‑time QA, design and project management. The embedded role is the
+      specialist seat on this project and the one we will name to you by person before
+      Phase 1 begins.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 6 ................................................................ -->
+<section>
+  <div class="rail"><b>06</b>Commercials</div>
+  <div class="body wide">
+    <h2>Costs</h2>
+    <div style="max-width:var(--measure)">
+    <p>Priced in Indian rupees, exclusive of GST. Phase 0 is quoted separately and at cost
+    so that the decision to continue is made on evidence; <strong>its fee is credited in
+    full against Phase 1</strong> if you proceed.</p>
+    </div>
+
+    <h3 style="margin-top:1.4rem">Track B — localized platform &nbsp;<span class="pill lo">recommended</span></h3>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Phase</th><th>Duration</th><th>Team</th><th class="num">Fee (₹)</th></tr></thead>
+        <tbody>
+          <tr><td><strong>0 —</strong> Discovery &amp; teardown</td><td>2 weeks</td><td>Embedded, backend, PM</td><td class="num">2,50,000</td></tr>
+          <tr><td><strong>1 —</strong> Working pilot</td><td>6 weeks</td><td>Android, embedded, backend, PM</td><td class="num">9,50,000</td></tr>
+          <tr><td><strong>2 —</strong> Production build</td><td>14 weeks</td><td>Full team, 5.4 FTE</td><td class="num">31,00,000</td></tr>
+          <tr><td><strong>3 —</strong> Hardening &amp; launch</td><td>6 weeks</td><td>Reduced team, 3.2 FTE</td><td class="num">8,50,000</td></tr>
+          <tr class="total"><td>Total</td><td>28 weeks</td><td>≈ 28 person‑months</td><td class="num">51,50,000</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Track A — application only, existing vendor stack</h3>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Scope</th><th>Duration</th><th>Note</th><th class="num">Fee (₹)</th></tr></thead>
+        <tbody>
+          <tr><td>Android + iOS on the vendor's P2P SDK</td><td>10 weeks</td><td>Infrastructure and firmware unchanged</td><td class="num">16,50,000</td></tr>
+          <tr class="total"><td>Total</td><td>10 weeks</td><td>Does not localize infrastructure</td><td class="num">16,50,000</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="max-width:var(--measure)">
+    <p style="font-size:.88rem;color:var(--muted)">We include Track A because it is
+    approximately what a quote scoped purely as “build an app like the reference one” costs,
+    and you should be able to compare like with like. We are not recommending it.</p>
+
+    <p><strong>Ongoing.</strong> Control plane running cost is estimated at ₹1,85,000 per
+    month at 50,000 active devices (section 02), billed at cost or run on your own cloud
+    account, whichever you prefer. Support and maintenance after launch is quoted separately
+    once the feature set is fixed.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 7 ................................................................ -->
+<section>
+  <div class="rail"><b>07</b>Risk</div>
+  <div class="body wide">
+    <h2>What could move these numbers</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Risk</th><th>Exposure</th><th>How we handle it</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Vendor withholds the SDK</strong><br><span style="color:var(--muted);font-size:.85rem">Firmware cannot be repointed at your servers</span></td>
+            <td><span class="pill hi">High</span></td>
+            <td>Phase 0 answers this before either side commits. If access is refused, we re‑quote Track B rather than absorb an unknown.</td>
+          </tr>
+          <tr>
+            <td><strong>Carrier‑grade NAT in India</strong><br><span style="color:var(--muted);font-size:.85rem">More sessions relayed than assumed</span></td>
+            <td><span class="pill md">Medium</span></td>
+            <td>Measured on real networks in Phase 1, before the relay tier is sized. Affects running cost, not the build.</td>
+          </tr>
+          <tr>
+            <td><strong>Installed base migration</strong><br><span style="color:var(--muted);font-size:.85rem">Cameras already in customers' homes</span></td>
+            <td><span class="pill md">Unscoped</span></td>
+            <td>Not included. If already‑sold units must move to the new app, that is a separate workstream — see Q4.</td>
+          </tr>
+          <tr>
+            <td><strong>Certification lead time</strong><br><span style="color:var(--muted);font-size:.85rem">Lab queues, not engineering</span></td>
+            <td><span class="pill md">Medium</span></td>
+            <td>We prepare evidence during Phase 2 rather than after, so testing starts the week Phase 3 opens.</td>
+          </tr>
+          <tr>
+            <td><strong>Feature scope beyond the brief</strong><br><span style="color:var(--muted);font-size:.85rem">Playback, cloud backup, AI detection</span></td>
+            <td><span class="pill lo">Managed</span></td>
+            <td>Phase 2 is fixed‑price against a feature list agreed at the end of Phase 0. Additions are quoted, not absorbed silently.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- 8 ................................................................ -->
+<section>
+  <div class="rail"><b>08</b>Open items</div>
+  <div class="body">
+    <h2>What we need from you</h2>
+    <p>These change the estimate materially. We would rather resolve them in the room than
+    price around them.</p>
+    <ol class="qs">
+      <li><b>Which notification is the mandate, and what is the deadline?</b><span>It determines whether firmware is in scope and how Phase 3 is sequenced.</span></li>
+      <li><b>What is the exact module and SoC, and do you hold an SDK licence or firmware source?</b><span>The single biggest variable in section 06. Two or three sample units this week would let Phase 0 start immediately.</span></li>
+      <li><b>Does the mandate cover the application only, or infrastructure and firmware too?</b><span>This is the choice between Track A and Track B.</span></li>
+      <li><b>Do cameras already sold need to migrate to the new app?</b><span>A migration path for fielded units is a workstream in its own right and is not currently priced.</span></li>
+      <li><b>Expected unit volume in the first year?</b><span>Sizes the control plane and fixes the per‑device running cost.</span></li>
+      <li><b>Single brand, or will the app be white‑labelled?</b><span>Multi‑brand affects the build from the first week, and costs far more to retrofit.</span></li>
+      <li><b>Beyond live view, capture and talk‑back — what else must ship at launch?</b><span>Recorded playback, motion zones, multi‑camera view and family sharing are each real work. We need the launch list fixed.</span></li>
+      <li><b>IP ownership and post‑launch support expectations?</b><span>Our assumption is that all source, keys and infrastructure are yours outright on payment.</span></li>
+    </ol>
+  </div>
+</section>
+
+<footer>
+  <span>less AI · Hyderabad / Bangalore</span>
+  <span>Ref LA‑2026‑0819 Rev A · Estimates valid 30 days</span>
+</footer>
+
+</div>
