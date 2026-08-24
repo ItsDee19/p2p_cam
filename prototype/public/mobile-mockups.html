@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P2P camera · mobile app UI · grunge</title>
+<style>
+:root {
+  --ground:#262622; --surface:#2E2E2A; --surface-2:#35352F; --surface-3:#3D3D36;
+  --ink:#E9E1D4; --ink-2:#D6CEBF; --muted:#A39C8C; --faint:#8C8677;
+  --rule:#45453C; --rule-strong:#56564A;
+  --accent:#C05555; --accent-dim:#33201C;
+  --ctrl:#B5A642; --ctrl-dim:#302C15; --ctrl-2:#CCC05F;
+  --warn:#C97B3A; --warn-dim:#31241A;
+  --ok:#8FB84A; --ok-dim:#252A16;
+  --f:"Courier New", Courier, monospace;
+  --radius:10px;
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.06'/%3E%3C/svg%3E");
+}
+*{box-sizing:border-box}
+body{
+  margin:0; font-family:var(--f); color:var(--ink); line-height:1.55;
+  background:var(--grain), var(--ground);
+  padding:2.5rem 1.5rem 4rem;
+}
+body::before{content:''; position:fixed; inset:0; pointer-events:none; z-index:999;
+  background:radial-gradient(ellipse at center, transparent 60%, rgba(20,20,16,.32) 100%);}
+
+.masthead{max-width:1400px;margin:0 auto 2.2rem;border-bottom:2px solid var(--rule-strong);padding-bottom:1.2rem}
+.masthead h1{margin:0;font-size:clamp(1.6rem,3.5vw,2.4rem);text-transform:uppercase;font-weight:700;
+  letter-spacing:-.01em;text-shadow:3px 3px 0 rgba(140,39,39,.35)}
+.masthead p{margin:.4rem 0 0;color:var(--muted);max-width:70ch}
+.pill{display:inline-flex;align-items:center;gap:.38rem;font-size:.68rem;letter-spacing:.09em;
+  text-transform:uppercase;padding:.22rem .5rem;border:1px dashed var(--rule-strong);
+  color:var(--muted);background:var(--surface)}
+.pill.on{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 60%,transparent);background:var(--ok-dim)}
+.pill.err{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 60%,transparent);background:var(--accent-dim)}
+.pill.ctrl{color:var(--ctrl);border-color:color-mix(in srgb,var(--ctrl) 60%,transparent);background:var(--ctrl-dim)}
+.dot{width:.4rem;height:.4rem;border-radius:50%;background:currentColor}
+
+.gallery{display:flex;flex-wrap:wrap;gap:2.4rem;justify-content:center;max-width:1400px;margin:0 auto}
+.shot{display:flex;flex-direction:column;align-items:center;gap:.7rem}
+.shot .cap{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.shot .cap b{color:var(--ctrl);margin-right:.5rem}
+
+.phone{
+  width:300px;height:640px;background:var(--ground);
+  border:2px solid #14140F;border-radius:34px;padding:10px;
+  box-shadow:4px 6px 0 rgba(15,15,10,.6), inset 0 0 0 1px var(--rule);
+  display:flex;flex-direction:column;overflow:hidden;position:relative;
+}
+.phone::after{content:'';position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  width:84px;height:16px;background:#14140F;border-radius:9px;z-index:50}
+.scr{flex:1;display:flex;flex-direction:column;background:var(--grain),var(--ground);
+  border-radius:24px;overflow:hidden;min-height:0}
+
+.sbar{flex:none;display:flex;justify-content:space-between;align-items:center;
+  padding:.55rem .9rem .2rem;font-size:.62rem;color:var(--faint);letter-spacing:.08em}
+.appbar{flex:none;display:flex;align-items:center;gap:.5rem;padding:.45rem .8rem;
+  border-bottom:1px dashed var(--rule-strong)}
+.appbar b{font-weight:700;font-size:.82rem;letter-spacing:.02em}
+.appbar .pill{margin-left:auto}
+.body{flex:1;overflow:hidden;padding:.7rem;display:flex;flex-direction:column;gap:.55rem;min-height:0}
+.tabbar{flex:none;display:flex;border-top:1px dashed var(--rule-strong);background:var(--surface)}
+.tabbar a{flex:1;text-align:center;padding:.5rem 0 .55rem;font-size:.58rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--faint);cursor:pointer;text-decoration:none;
+  border-top:2px solid transparent}
+.tabbar a.on{color:var(--ctrl);border-top-color:var(--ctrl);font-weight:700}
+.tabbar a:hover{color:var(--ink)}
+
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius);
+  box-shadow:2px 3px 0 rgba(18,18,12,.5);padding:.65rem .7rem;display:flex;flex-direction:column;gap:.4rem}
+.card h3{margin:0;font-size:.66rem;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.btn{font-family:inherit;font-weight:700;font-size:.78rem;color:var(--ink-2);background:var(--surface-2);
+  border:1px solid var(--rule-strong);border-radius:8px;padding:.55rem .7rem;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;gap:.4rem;width:100%;
+  transition:transform .12s ease, box-shadow .12s ease}
+.btn:hover{transform:translateY(-1px);box-shadow:0 2px 5px rgba(18,18,12,.45);color:var(--ink)}
+.btn.primary{background:var(--ctrl);border-color:var(--ctrl);color:#26220A}
+.btn.active{background:var(--accent);border-color:var(--accent);color:#2A1210}
+.btn.sm{width:auto;padding:.35rem .6rem;font-size:.7rem}
+.note{border-left:3px solid var(--ctrl);border-radius:0 8px 8px 0;background:var(--ctrl-dim);
+  padding:.5rem .6rem;font-size:.72rem;color:var(--ink-2)}
+.note.warn{border-left-color:var(--warn);background:var(--warn-dim)}
+.note.media{border-left-color:var(--accent);background:var(--accent-dim)}
+.lbl{font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
+
+/* live stage */
+.stage{flex:none;position:relative;aspect-ratio:4/3;border-radius:var(--radius);overflow:hidden;
+  border:1px solid var(--rule-strong);
+  background:radial-gradient(ellipse at center,#33332B 0%,#17170F 85%)}
+.stage .feed{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#4a463c;font-size:2rem}
+.stage .ovl{position:absolute;display:flex;gap:.3rem}
+.stage .ovl.tl{top:.5rem;left:.5rem}
+.stage .ovl.tr{top:.5rem;right:.5rem}
+.stage .rec{position:absolute;bottom:.5rem;left:.5rem;font-size:.58rem;color:var(--accent);letter-spacing:.15em}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem}
+.tbtn{display:flex;flex-direction:column;align-items:center;gap:.25rem;padding:.55rem .2rem;
+  background:var(--surface-2);border:1px solid var(--rule-strong);border-radius:8px;color:var(--ink-2);
+  font-family:inherit;font-size:.56rem;letter-spacing:.04em;cursor:pointer;
+  transition:background .2s,color .2s}
+.tbtn:hover{background:var(--surface-3);color:var(--ink)}
+.tbtn svg,.btn svg{width:1rem;height:1rem;stroke:currentColor;fill:none;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round}
+.tbtn.on{background:var(--accent);border-color:var(--accent);color:#2A1210}
+.tbtn.go{background:var(--ctrl);border-color:var(--ctrl);color:#26220A;font-weight:700}
+
+.pin-hero{display:flex;flex-direction:column;align-items:center;gap:.1rem;background:var(--ground);
+  border:1px solid var(--accent);border-radius:var(--radius);padding:.7rem}
+.pin-hero .lbl{color:var(--accent);letter-spacing:.18em}
+.pin-hero .v{font-size:2.3rem;font-weight:700;letter-spacing:.18em;color:var(--accent);user-select:all}
+.uid{font-size:.95rem;font-weight:700;color:var(--ctrl);background:var(--ground);
+  border:1px dashed var(--rule-strong);border-radius:8px;padding:.45rem;text-align:center}
+
+.camrow{display:flex;align-items:center;gap:.5rem;padding:.55rem .6rem;background:var(--surface-2);
+  border:1px solid var(--rule-strong);border-radius:8px;font-size:.76rem;cursor:pointer;
+  transition:border-color .2s,background .2s}
+.camrow:hover{border-color:var(--ctrl);background:var(--surface-3)}
+.camrow.sel{border-color:var(--ctrl);background:var(--ctrl-dim)}
+.camrow .meta{margin-left:auto;font-size:.58rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--rule);
+  border:1px solid var(--rule);border-radius:var(--radius);overflow:hidden}
+.tile{background:var(--surface);padding:.5rem .55rem}
+.tile b{display:block;font-size:.92rem;font-weight:700;line-height:1.2}
+.tile span{font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.tile b.ctrl{color:var(--ctrl)} .tile b.accent{color:var(--accent)}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.5rem;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:1.2rem 1fr;gap:.5rem;
+  font-size:.74rem;color:var(--ink-2)}
+.steps li::before{content:counter(s);color:var(--ctrl);font-weight:700}
+.thumb{aspect-ratio:1;border-radius:8px;border:1px dashed var(--rule-strong);
+  background:radial-gradient(circle at 35% 30%,#4b473a,#23231c);}
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <h1>less AI <span style="color:var(--ctrl)">·</span> P2P camera mobile app</h1>
+  <p>Seven-screen mobile UI for the peer-to-peer camera prototype — the phone is the
+     camera, the second device is the viewer, and the server never sees the video.
+     Grunge treatment: Courier New, xeroxed surfaces, dirty yellow control plane,
+     muted red for anything live.</p>
+</div>
+
+<div class="gallery">
+
+<!-- ============ 01 HOME ============ -->
+<div class="shot" id="s-home">
+  <div class="phone"><div class="scr">
+    <div class="sbar"><span>9:41</span><span>LTE ▮▮▮</span></div>
+    <div class="appbar"><b>less AI</b><span class="pill ctrl"><span class="dot"></span>local only</span></div>
+    <div class="body">
+      <div class="card">
+        <h3>A camera, a viewer, and a server that never sees the video</h3>
+        <p style="margin:0;font-size:.74rem;color:var(--ink-2)">Everything runs on your local network.
+           The feed travels straight between devices.</p>
+      </div>
+      <div class="card">
+        <h3>Pick a role</h3>
+        <button class="btn primary" data-goto="s-cam-live">Phone becomes the camera</button>
+        <button class="btn" data-goto="s-view-reg">This device watches</button>
+      </div>
+      <div class="card">
+        <h3>How it pairs</h3>
+        <ol class="steps">
+          <li>Camera shows a six-digit PIN.</li>
+          <li>Viewer types the PIN once.</li>
+          <li>Direct encrypted link. No cloud.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="tabbar"><a class="on">home</a><a data-goto="s-cam-live">camera</a><a data-goto="s-view-reg">viewer</a><a data-goto="s-settings">settings</a></div>
+  </div></div>
+  <div class="cap"><b>01</b>home / role select</div>
+</div>
+
+<!-- ============ 02 CAMERA PAIRING ============ -->
+<div class="shot" id="s-cam-pair">
+  <div class="phone"><div class="scr">
+    <div class="sbar"><span>9:41</span><span>LTE ▮▮▮</span></div>
+    <div class="appbar"><b>camera · pair</b><span class="pill err"><span class="dot"></span>unpaired</span></div>
+    <div class="body">
+      <div class="pin-hero">
+        <span class="lbl">pairing pin — read aloud</span>
+        <span class="v">481&nbsp;902</span>
+      </div>
+      <div class="note">Type this PIN into the viewer device within two minutes.
+         It rotates every pairing attempt.</div>
+      <div class="lbl">this device's uid</div>
+      <div class="uid">CAM-7F3A-K2</div>
+      <button class="btn primary" data-goto="s-cam-live">Skip — go to live view</button>
+      <div class="note warn">Both devices must share one Wi-Fi network.
+         The connection is direct; this PIN never leaves the room.</div>
+    </div>
+    <div class="tabbar"><a data-goto="s-home">home</a><a class="on" data-goto="s-cam-pair">camera</a><a data-goto="s-view-reg">viewer</a><a data-goto="s-settings">settings</a></div>
+  </div></div>
+  <div class="cap"><b>02</b>camera · pairing pin</div>
+</div>
+
+<!-- ============ 03 CAMERA LIVE ============ -->
+<div class="shot" id="s-cam-live">
+  <div class="phone"><div class="scr">
+    <div class="sbar"><span>9:41</span><span>LTE ▮▮▮</span></div>
+    <div class="appbar"><b>camera</b><span class="pill err"><span class="dot"></span>live · cam-7f3a-k2</span></div>
+    <div class="body">
+      <div class="stage">
+        <div class="feed">▣</div>
+        <div class="ovl tl"><span class="pill err"><span class="dot" style="animation:pulse 1.5s infinite"></span>REC</span></div>
+        <div class="ovl tr"><span class="pill ctrl">direct · lan</span></div>
+        <div class="rec">● 00:04:17 · 1280×720</div>
+      </div>
+      <div class="tiles">
+        <div class="tile"><b class="accent">1.8<span style="font-size:.6rem"> Mb/s</span></b><span>bitrate</span></div>
+        <div class="tile"><b class="ctrl">0 B</b><span>via server</span></div>
+        <div class="tile"><b>42 ms</b><span>rtt</span></div>
+      </div>
+      <div class="grid4">
+        <button class="tbtn go"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/></svg>stop</button>
+        <button class="tbtn"><svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 4V6L7 10H3z"/><path d="M16 8a5 5 0 0 1 0 8"/></svg>talk</button>
+        <button class="tbtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="4"/><path d="M4 8h3l2-3h6l2 3h3v11H4z"/></svg>still</button>
+        <button class="tbtn"><svg viewBox="0 0 24 24"><path d="M4 8c3-3 13-3 16 0M4 16c3 3 13 3 16 0"/><path d="M17 5l3 3-3 3M7 13l-3 3 3 3"/></svg>flip</button>
+      </div>
+    </div>
+    <div class="tabbar"><a data-goto="s-home">home</a><a class="on">camera</a><a data-goto="s-view-reg">viewer</a><a data-goto="s-settings">settings</a></div>
+  </div></div>
+  <div class="cap"><b>03</b>camera · live</div>
+</div>
+
+<!-- ============ 04 VIEWER REGISTRY ============ -->
+<div class="shot" id="s-view-reg">
+  <div class="phone"><div class="scr">
+    <div class="sbar"><span>9:41</span><span>WI-FI ▮▮▮</span></div>
+    <div class="appbar"><b>viewer</b><span class="pill on"><span class="dot"></span>lan online</span></div>
+    <div class="body">
+      <div class="card"><h3>uid registry</h3>
+        <div class="camrow sel"><span>CAM-7F3A-K2</span><span class="meta" style="color:var(--ok)">online</span></div>
+        <div class="camrow"><span>CAM-B1D0-Q7</span><span class="meta">offline</span></div>
+        <div class="camrow"><span>CAM-99AA-X4</span><span class="meta">offline</span></div>
+      </div>
+      <button class="btn primary" data-goto="s-view-live">Pair a new camera</button>
+      <div class="note">Cameras appear here automatically once they go live
+         on this network. Click one to connect.</div>
+    </div>
+    <div class="tabbar"><a data-goto="s-home">home</a><a data-goto="s-cam-live">camera</a><a class="on">viewer</a><a data-goto="s-settings">settings</a></div>
+  </div></div>
+  <div class="cap"><b>04</b>viewer · uid registry</div>
+</div>
+
+<!-- ============ 05 VIEWER PAIRING ============ -->
+<div class="shot" id="s-view-pair">
+  <div class="phone"><div class="scr">
+    <div class="sbar"><span>9:41</span><span>WI-FI ▮▮▮</span></div>
+    <div class="appbar"><b>viewer · pair</b><span class="pill warn">entering pin</span></div>
+    <div class="body">
+      <div class="card"><h3>Type the camera's pin</h3>
+        <div style="font-size:1.7rem;font-weight:700;letter-spacing:.42em;text-indent:.42em;
+             text-align:center;color:var(--ctrl);background:var(--ground);border:1px solid var(--rule-strong);
+             border-radius:8px;padding:.55rem .2rem">481902</div>
+      </div>
+      <button class="btn primary" data-goto="s-view-live">Connect →</button>
+      <div class="note warn">The PIN is shown on the camera's screen.
+         It expires in two minutes.</div>
+      <div class="card"><h3>what happens next</h3>
+        <ol class="steps">
+          <li>Devices exchange keys directly.</li>
+          <li>Video + audio flow peer-to-peer.</li>
+          <li>The server relays only signalling.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="tabbar"><a data-goto="s-home">home</a><a data-goto="s-cam-live">camera</a><a class="on" data-goto="s-view-pair">viewer</a><a data-goto="s-settings">settings</a></div>
+  </div></div>
+  <div class="cap"><b>05</b>viewer · enter pin</div>
+</div>
+
+<!-- ============ 06 VIEWER LIVE ============ -->
+<div class="shot" id="s-view-live">
+  <div class="phone"><div class="scr">
+    <div class="sbar"><span>9:41</span><span>WI-FI ▮▮▮</span></div>
+    <div class="appbar"><b>cam-7f3a-k2</b><span class="pill err"><span class="dot"></span>watching</span></div>
+    <div class="body">
+      <div class="stage">
+        <div class="feed">▣</div>
+        <div class="ovl tr"><span class="pill ctrl">direct · lan</span></div>
+        <div class="rec" style="left:auto;right:.5rem;color:var(--ctrl)">encrypted p2p</div>
+      </div>
+      <div class="tiles">
+        <div class="tile"><b class="accent">2.1<span style="font-size:.6rem"> Mb/s</span></b><span>video in</span></div>
+        <div class="tile"><b class="ctrl">0 B</b><span>media via server</span></div>
+        <div class="tile"><b>38 ms</b><span>latency</span></div>
+      </div>
+      <div class="grid4">
+        <button class="tbtn"><svg viewBox="0 0 24 24"><path d="M12 3v10"/><path d="M8 7l4-4 4 4"/><rect x="4" y="13" width="16" height="8" rx="2"/></svg>push talk</button>
+        <button class="tbtn on"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="4"/><path d="M4 8h3l2-3h6l2 3h3v11H4z"/></svg>capture</button>
+        <button class="tbtn"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>reconnect</button>
+        <button class="tbtn"><svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>fullscreen</button>
+      </div>
+      <div class="note media">Snapshot saved to CAM-7F3A-K2 local storage at 9:41:07.</div>
+    </div>
+    <div class="tabbar"><a data-goto="s-home">home</a><a data-goto="s-cam-live">camera</a><a class="on">viewer</a><a data-goto="s-settings">settings</a></div>
+  </div></div>
+  <div class="cap"><b>06</b>viewer · live feed</div>
+</div>
+
+<!-- ============ 07 SETTINGS ============ -->
+<div class="shot" id="s-settings">
+  <div class="phone"><div class="scr">
+    <div class="sbar"><span>9:41</span><span>WI-FI ▮▮▮</span></div>
+    <div class="appbar"><b>settings</b><span class="pill ctrl">local only</span></div>
+    <div class="body">
+      <div class="card"><h3>this device</h3>
+        <div class="uid" style="font-size:.85rem">UID · CAM-7F3A-K2</div>
+        <button class="btn sm" style="width:100%">Rotate UID</button>
+      </div>
+      <div class="note"><strong style="color:var(--ink)">Proven:</strong> live video and two-way audio over a direct encrypted peer connection. The relay carries kilobytes of signalling — no media.</div>
+      <div class="note warn"><strong style="color:var(--ink)">Not proven:</strong> both ends are browsers, not firmware. Cross-internet connections need the STUN/TURN tier — that's Phase 1.</div>
+      <div class="card"><h3>server</h3>
+        <p style="margin:0;font-size:.72rem;color:var(--ink-2)">signalling relay · LAN<br>sees metadata, never media</p>
+      </div>
+    </div>
+    <div class="tabbar"><a data-goto="s-home">home</a><a data-goto="s-cam-live">camera</a><a data-goto="s-view-reg">viewer</a><a class="on">settings</a></div>
+  </div></div>
+  <div class="cap"><b>07</b>settings / about</div>
+</div>
+
+</div>
+
+<script>
+document.addEventListener('click', function (e) {
+  var t = e.target.closest('[data-goto]');
+  if (!t) return;
+  var el = document.getElementById(t.getAttribute('data-goto'));
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    el.querySelector('.phone').style.borderColor = 'var(--ctrl)';
+    setTimeout(function () { el.querySelector('.phone').style.borderColor = '#14140F'; }, 1200);
+  }
+});
+</script>
+</body>
+</html>
