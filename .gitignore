@@ -1,0 +1,35 @@
+# ---------------------------------------------------------------- secrets --
+# The prototype mints a self-signed TLS certificate at first run. key.pem is a
+# real private key and must never be published; it is regenerated on demand
+# with `node server.js --regen-cert`.
+certs/
+*.pem
+*.jks
+*.keystore
+local.properties
+
+# ------------------------------------------------------------ build output --
+build/
+.gradle/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+captures/
+.cxx/
+
+# ------------------------------------------------------------------- node --
+node_modules/
+
+# ------------------------------------------------------------------- logs --
+*.log
+build.log
+buildB.log
+
+# -------------------------------------------------------------------- IDE --
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,68 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'ai.less.p2pcam'
+    compileSdk 31
+
+    defaultConfig {
+        applicationId "ai.less.p2pcam"
+        minSdk 24
+        targetSdk 31
+        versionCode 1
+        versionName "0.1"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            // -Pinst=B builds a second, independently installable copy
+            // (ai.less.p2pcam.debugB) so both roles can run on one device or
+            // emulator — the only way to exercise a real peer connection when
+            // nothing outside can route back to it.
+            applicationIdSuffix ".debug" + (project.findProperty("inst") ?: "")
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+
+    packagingOptions {
+        resources.excludes += ['META-INF/*.kotlin_module', 'META-INF/DEPENDENCIES']
+    }
+}
+
+dependencies {
+    // Pinned to the last AndroidX releases that still support compileSdk 31,
+    // which is the only platform installed here. Install android-33 through
+    // Android Studio's SDK Manager, raise compileSdk above, and these can all
+    // move to current versions unchanged.
+    implementation 'androidx.core:core-ktx:1.7.0'
+    implementation 'androidx.appcompat:appcompat:1.4.2'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.activity:activity-ktx:1.4.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4'
+
+    // Native WebRTC. Same media stack a shipped camera app would use — this is
+    // deliberately not a WebView wrapper.
+    implementation 'io.github.webrtc-sdk:android:114.5735.09'
+
+    // Signalling transport: SSE down, POST up, matching the prototype server.
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.okhttp3:okhttp-sse:4.12.0'
+}

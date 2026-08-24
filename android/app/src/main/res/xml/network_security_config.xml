@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A native app has no "secure context" rule, so unlike the browser it can talk
+  plain HTTP to the prototype server on the LAN. That is the recommended path:
+  start the server in plain HTTP mode and skip certificates entirely.
+
+  Cleartext is permitted here because the server lives at whatever address DHCP
+  handed the laptop, and Android's network security config matches literal
+  hostnames — it cannot express "any RFC1918 address". There is no way to
+  allow-list a LAN subnet, so a prototype that must reach one has to permit
+  cleartext generally.
+
+  A shipped product would set this to false and pin the device certificate
+  instead. See SECURITY.md in the prototype folder.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P2P camera prototype · less AI</title>
+<link rel="stylesheet" href="/assets/app.css">
+<style>
+  .hero { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 2rem; align-items: start; }
+  @media (max-width: 780px) { .hero { grid-template-columns: minmax(0,1fr); } }
+  .rolecard { display: flex; align-items: flex-start; gap: .9rem; padding: 1.1rem;
+              background: var(--surface); border: 1px solid var(--rule-strong); }
+  .rolecard .icon { width: 1.6rem; height: 1.6rem; color: var(--ctrl); margin-top: .15rem; }
+  .rolecard b { display: block; font-size: 1rem; margin-bottom: .15rem; }
+  .rolecard span { font-size: .85rem; color: var(--muted); line-height: 1.5; }
+  .num { font-family: var(--f-mono); font-size: var(--t-micro); letter-spacing: .13em;
+         text-transform: uppercase; color: var(--accent); }
+</style>
+</head>
+<body>
+<script src="/assets/icons.js"></script>
+
+<div class="topbar">
+  <div class="brand">less AI <small>P2P camera prototype</small></div>
+  <span class="pill ctrl" id="netPill">local only</span>
+</div>
+
+<div class="wrap">
+  <div class="stack" style="gap:1.5rem">
+
+    <div class="lede">
+      <h1>A camera, a viewer, and a server that never sees the video</h1>
+      <p>Everything here runs on this machine and your local network. The phone
+         becomes the camera, this laptop becomes the monitoring app, and the live
+         feed travels straight between them — exactly the split described in
+         section 02 of the proposal.</p>
+    </div>
+
+    <div class="hero">
+      <div class="stack">
+
+        <div class="card">
+          <header><span class="num">Step 1</span> &nbsp;Turn your phone into the camera</header>
+          <div class="pad">
+            <div class="row" style="gap:1.2rem;align-items:flex-start;flex-wrap:nowrap">
+              <div class="qr" id="qrBox"><svg viewBox="0 0 1 1"></svg></div>
+              <div class="stack" style="gap:.6rem;min-width:0">
+                <div>
+                  <div class="lbl" style="margin-bottom:.35rem">Scan this, or type it into the phone's browser</div>
+                  <div class="urlbox" id="camUrl">detecting…</div>
+                </div>
+                <div class="row" id="altAddrs"></div>
+              </div>
+            </div>
+            <div class="note warn">
+              <p><strong>The phone must be on the same Wi-Fi as this laptop.</strong>
+                 The certificate is self-signed, so the phone warns once — tap
+                 <b>Advanced</b> then <b>Proceed</b>. Do this before anyone is
+                 watching. Browsers block camera access on plain HTTP, which is why
+                 the prototype serves HTTPS.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <header><span class="num">Step 2</span> &nbsp;Use this laptop as the viewer</header>
+          <div class="pad">
+            <a class="btn primary wide" href="/viewer.html" style="text-decoration:none">
+              <svg class="icon"><use href="#i-monitor"/></svg>Open the monitoring app</a>
+            <p class="hint">The phone's UID appears in the registry automatically once
+               it goes live. Click it to connect.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="stack" style="min-width:15rem">
+        <div class="rolecard">
+          <svg class="icon"><use href="#i-phone"/></svg>
+          <div><b>Phone</b><span>The camera. Publishes live video and two-way audio
+               under a UID.</span></div>
+        </div>
+        <div class="rolecard">
+          <svg class="icon"><use href="#i-monitor"/></svg>
+          <div><b>This laptop</b><span>The app. Watches, talks back, and triggers a
+               still to be saved on the phone.</span></div>
+        </div>
+        <a class="btn ghost wide" href="/camera.html" style="text-decoration:none">
+          <svg class="icon"><use href="#i-camera"/></svg>Use this laptop as the camera instead</a>
+      </div>
+    </div>
+
+    <div class="pathwrap">
+      <div class="card">
+        <header>Running the demo</header>
+        <div class="pad">
+          <ol class="steps">
+            <li>Scan the code above on the phone and accept the certificate warning.</li>
+            <li>On the phone, press <b>Start</b> and allow camera and microphone.</li>
+            <li>On this laptop, open the <a href="/viewer.html">monitoring app</a>. The
+                phone appears under <b>UID registry</b> — click it.</li>
+            <li>Watch <b>connection path</b> read <b>DIRECT · LAN</b> while
+                <b>media through server</b> stays at <b>0 B</b>.</li>
+            <li>Press <b>Capture on camera</b> to write a still on the phone from the
+                laptop, and <b>Talk</b> to speak through it.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="card">
+        <header>What this proves, and what it doesn't</header>
+        <div class="pad">
+          <div class="note">
+            <p><strong>Proven:</strong> live video and two-way audio over a direct
+               encrypted peer connection, remote capture written to the device's own
+               storage, a UID registry, and a control plane that relays a few
+               kilobytes of signalling and no media at all.</p>
+          </div>
+          <div class="note warn">
+            <p><strong>Not proven:</strong> both ends are browsers, not camera
+               firmware, and this connects over one Wi-Fi network. Real units need the
+               media stack on the SoC plus the STUN and TURN tier for connections that
+               cross the internet. That is the Phase&nbsp;1 work.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="/assets/qr.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+
+  function render(url) {
+    $('camUrl').textContent = url;
+    try {
+      $('qrBox').innerHTML = QR.svg(url, { quiet: 3 });
+    } catch (err) {
+      $('qrBox').style.display = 'none';
+    }
+  }
+
+  fetch('/api/net').then(function (r) { return r.json(); }).then(function (d) {
+    var addrs = d.addresses || [];
+    if (!addrs.length) {
+      $('netPill').textContent = 'no LAN address found';
+      $('netPill').className = 'pill warn';
+      render(location.origin + '/camera.html');
+      return;
+    }
+
+    var build = function (a) { return d.scheme + '://' + a.address + ':' + d.port + '/camera.html'; };
+    render(build(addrs[0]));
+    $('netPill').textContent = addrs[0].address;
+
+    if (addrs.length > 1) {
+      var box = $('altAddrs');
+      var lbl = document.createElement('span');
+      lbl.className = 'lbl';
+      lbl.textContent = 'other interfaces';
+      box.appendChild(lbl);
+      addrs.slice(1).forEach(function (a) {
+        var b = document.createElement('button');
+        b.className = 'btn sm';
+        b.type = 'button';
+        b.textContent = a.address;
+        b.onclick = function () { render(build(a)); $('netPill').textContent = a.address; };
+        box.appendChild(b);
+      });
+    }
+  }).catch(function () { render(location.origin + '/camera.html'); });
+})();
+</script>
+</body>
+</html>

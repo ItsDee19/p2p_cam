@@ -1,0 +1,4 @@
+-keep class org.webrtc.** { *; }
+-dontwarn org.webrtc.**
+-dontwarn okhttp3.**
+-dontwarn okio.**

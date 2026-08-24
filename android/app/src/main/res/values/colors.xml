@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Carries the same identity as the web prototype: red is media, teal is
+         the control plane. Nothing else is coloured. -->
+    <color name="ground">#FF08090B</color>
+    <color name="surface">#FF101316</color>
+    <color name="surface2">#FF171B1F</color>
+    <color name="surface3">#FF212930</color>
+
+    <color name="ink">#FFECEFEE</color>
+    <color name="ink2">#FFB9C4C0</color>
+    <color name="muted">#FF8E9895</color>
+    <color name="faint">#FF79837F</color>
+
+    <color name="line">#FF232A2F</color>
+    <color name="line_strong">#FF313B42</color>
+
+    <color name="accent">#FFFF5A5F</color>
+    <color name="accent_dim">#FF2B1416</color>
+    <color name="ctrl">#FF4FD1CC</color>
+    <color name="ctrl_dim">#FF0D2A29</color>
+    <color name="warn">#FFE8AC4A</color>
+    <color name="warn_dim">#FF2A2113</color>
+    <color name="ok">#FF5FD08A</color>
+
+    <color name="on_accent">#FF260809</color>
+    <color name="on_ctrl">#FF04211F</color>
+    <color name="scrim">#CC05070A</color>
+</resources>

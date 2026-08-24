@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/ground">
+
+    <!-- ====================================================== topbar == -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:background="@color/surface"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="12dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            style="@style/Label"
+            android:textColor="@color/ink2"
+            android:text="Monitoring app" />
+
+        <TextView
+            android:id="@+id/pathPill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/pill_muted"
+            style="@style/Label"
+            android:paddingStart="9dp"
+            android:paddingEnd="9dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:visibility="gone"
+            android:text="—" />
+    </LinearLayout>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/line" />
+
+    <!-- ======================================================= stage == -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#FF000000">
+
+        <org.webrtc.SurfaceViewRenderer
+            android:id="@+id/feed"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <ai.less.p2pcam.ui.BracketFrame
+            android:id="@+id/brackets"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <TextView
+            android:id="@+id/emptyText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:padding="34dp"
+            android:textSize="14sp"
+            android:textColor="@color/muted"
+            android:lineSpacingMultiplier="1.35"
+            android:text="Not paired.\nEnter the UID and PIN shown on the camera." />
+
+        <TextView
+            android:id="@+id/livePill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|start"
+            android:layout_margin="18dp"
+            android:background="@drawable/pill_accent"
+            style="@style/Label"
+            android:textColor="@color/accent"
+            android:paddingStart="9dp" android:paddingEnd="9dp"
+            android:paddingTop="4dp" android:paddingBottom="4dp"
+            android:visibility="gone"
+            android:text="● live" />
+
+        <TextView
+            android:id="@+id/micPill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_margin="18dp"
+            android:background="@drawable/pill_accent"
+            style="@style/Label"
+            android:textColor="@color/accent"
+            android:paddingStart="9dp" android:paddingEnd="9dp"
+            android:paddingTop="4dp" android:paddingBottom="4dp"
+            android:visibility="gone"
+            android:text="● mic open" />
+    </FrameLayout>
+
+    <!-- ================================================== stat strip == -->
+    <LinearLayout
+        android:id="@+id/statStrip"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/surface"
+        android:orientation="horizontal"
+        android:baselineAligned="false"
+        android:visibility="gone">
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:orientation="vertical" android:padding="10dp">
+            <TextView android:id="@+id/sRate" style="@style/Readout" android:textColor="@color/accent"
+                android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="—" />
+            <TextView style="@style/Label" android:layout_marginTop="3dp"
+                android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="bitrate" />
+        </LinearLayout>
+
+        <View android:layout_width="1dp" android:layout_height="match_parent" android:background="@color/line" />
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:orientation="vertical" android:padding="10dp">
+            <TextView android:id="@+id/sRes" style="@style/Readout"
+                android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="—" />
+            <TextView style="@style/Label" android:layout_marginTop="3dp"
+                android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="frame" />
+        </LinearLayout>
+
+        <View android:layout_width="1dp" android:layout_height="match_parent" android:background="@color/line" />
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:orientation="vertical" android:padding="10dp">
+            <TextView android:id="@+id/sRtt" style="@style/Readout"
+                android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="—" />
+            <TextView style="@style/Label" android:layout_marginTop="3dp"
+                android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="rtt" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ==================================================== controls == -->
+    <LinearLayout
+        android:id="@+id/controls"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/surface"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <!-- pairing form, hidden once connected -->
+        <LinearLayout
+            android:id="@+id/pairForm"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView style="@style/Label"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="camera uid" />
+
+            <EditText
+                android:id="@+id/uidInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/input"
+                android:fontFamily="monospace"
+                android:textSize="15sp"
+                android:letterSpacing="0.05"
+                android:textColor="@color/ink"
+                android:textColorHint="@color/faint"
+                android:hint="LESSAI-000000-XXX"
+                android:inputType="textCapCharacters"
+                android:maxLines="1"
+                android:minHeight="50dp"
+                android:paddingStart="14dp" android:paddingEnd="14dp"
+                android:importantForAutofill="no" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView style="@style/Label"
+                    android:layout_width="0dp" android:layout_weight="1"
+                    android:layout_height="wrap_content" android:text="pairing pin" />
+
+                <TextView android:id="@+id/pinCount" style="@style/Label"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="0/6" />
+            </LinearLayout>
+
+            <EditText
+                android:id="@+id/pinInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/input"
+                android:fontFamily="monospace"
+                android:textSize="26sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.4"
+                android:gravity="center"
+                android:textColor="@color/accent"
+                android:textColorHint="@color/faint"
+                android:hint="······"
+                android:inputType="number"
+                android:maxLength="6"
+                android:maxLines="1"
+                android:minHeight="60dp"
+                android:importantForAutofill="no" />
+
+            <TextView
+                android:id="@+id/pairError"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/note_warn"
+                android:padding="10dp"
+                android:paddingStart="14dp"
+                android:textSize="13sp"
+                android:textColor="@color/warn"
+                android:visibility="gone"
+                android:text="" />
+
+            <Button
+                android:id="@+id/btnConnect"
+                style="@style/Btn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/btn_ctrl"
+                android:textColor="@color/on_ctrl"
+                android:enabled="false"
+                android:text="Connect" />
+        </LinearLayout>
+
+        <!-- live controls, hidden until connected -->
+        <LinearLayout
+            android:id="@+id/liveControls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:baselineAligned="false">
+
+                <Button android:id="@+id/btnListen" style="@style/Btn"
+                    android:layout_width="0dp" android:layout_weight="1"
+                    android:layout_height="wrap_content" android:text="Listen" />
+
+                <Button android:id="@+id/btnTalk" style="@style/Btn"
+                    android:layout_width="0dp" android:layout_weight="1"
+                    android:layout_height="wrap_content" android:layout_marginStart="8dp"
+                    android:text="Talk" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal"
+                android:baselineAligned="false">
+
+                <Button android:id="@+id/btnCapture" style="@style/Btn"
+                    android:layout_width="0dp" android:layout_weight="2"
+                    android:layout_height="wrap_content" android:text="Capture on camera" />
+
+                <Button android:id="@+id/btnFlipRemote" style="@style/Btn"
+                    android:layout_width="0dp" android:layout_weight="1"
+                    android:layout_height="wrap_content" android:layout_marginStart="8dp"
+                    android:text="Flip" />
+            </LinearLayout>
+
+            <Button android:id="@+id/btnDisconnect" style="@style/Btn"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="@color/accent"
+                android:text="Disconnect" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/logLine"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:fontFamily="monospace"
+            android:textSize="12sp"
+            android:maxLines="2"
+            android:textColor="@color/faint"
+            android:text="ready" />
+    </LinearLayout>
+</LinearLayout>

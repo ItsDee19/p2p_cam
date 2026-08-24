@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#080A0C">
+<title>Camera · P2P prototype</title>
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<script src="/assets/icons.js"></script>
+
+<div class="phone">
+
+  <div class="topbar">
+    <div class="brand">less AI <small>device</small></div>
+    <span class="pill" id="viewerPill">0 viewers</span>
+    <button class="btn sm ghost" id="btnSpeaker" disabled title="Talk-back speaker">
+      <svg class="icon"><use href="#i-vol-on" id="spkIcon"/></svg></button>
+    <button class="btn sm ghost" id="btnDetails" title="Details">
+      <svg class="icon"><use href="#i-info"/></svg></button>
+  </div>
+
+  <div class="phone-stage" id="stage">
+    <video id="preview" autoplay playsinline muted></video>
+    <div class="stage-empty" id="empty">
+      <svg class="icon"><use href="#i-nofeed"/></svg>
+      <strong>Camera is off</strong>
+      <span>Press Start below. Your browser will ask for camera and microphone —
+            both are needed for two-way audio.</span>
+    </div>
+    <div class="overlay tl">
+      <span class="pill err" id="recPill" hidden><span class="dot live"></span>LIVE</span>
+      <span class="pill" id="resPill" hidden>—</span>
+    </div>
+    <div class="overlay tr">
+      <span class="pill" id="secure">checking</span>
+    </div>
+    <div class="overlay br">
+      <span class="pill" id="shotPill" hidden>0 saved</span>
+    </div>
+  </div>
+
+  <div class="phone-bar">
+    <div class="phone-id">
+      <span class="lbl">UID</span>
+      <span class="v" id="uid">—</span>
+      <button class="btn sm ghost" id="btnCopy" title="Copy">
+        <svg class="icon"><use href="#i-copy"/></svg></button>
+    </div>
+
+    <div class="pin-hero" id="pinRow" hidden>
+      <span class="lbl">Pairing PIN — type this on the viewer</span>
+      <span class="v" id="pin">------</span>
+      <button class="rot" id="btnNewPin" title="New PIN" aria-label="Generate a new PIN">
+        <svg class="icon"><use href="#i-flip"/></svg></button>
+    </div>
+
+    <div class="phone-grid">
+      <button class="tbtn go" id="btnStart">
+        <svg class="icon"><use href="#i-play" id="startIcon"/></svg>
+        <span id="startLabel">Start</span></button>
+      <button class="tbtn" id="btnSwitch" disabled>
+        <svg class="icon"><use href="#i-flip"/></svg>Flip</button>
+      <button class="tbtn" id="btnTorch" disabled>
+        <svg class="icon"><use href="#i-flash"/></svg>Torch</button>
+      <button class="tbtn" id="btnShot" disabled>
+        <svg class="icon"><use href="#i-camera"/></svg>Capture</button>
+    </div>
+  </div>
+</div>
+
+<!-- ---------------------------------------------------------- sheet -- -->
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-inner">
+    <div class="row">
+      <b style="font-size:1.02rem;margin-right:auto">Device details</b>
+      <button class="btn sm" id="btnCloseSheet">Close</button>
+    </div>
+
+    <div class="strip" style="grid-template-columns:repeat(2,1fr)">
+      <div class="tile"><b id="sViewers">0</b><span>viewers</span></div>
+      <div class="tile"><b id="sRes">—</b><span>capture</span></div>
+      <div class="tile"><b id="sFacing">—</b><span>facing</span></div>
+      <div class="tile"><b id="sShots">0</b><span>stills saved</span></div>
+    </div>
+
+    <div class="note media">
+      <p><strong>Video never reaches the server.</strong> It is encrypted by WebRTC
+         and sent straight to whoever is watching. The server only helped the two
+         find each other.</p>
+    </div>
+
+    <div>
+      <div class="lbl" style="margin-bottom:.35rem">Event log</div>
+      <div class="log" id="log" style="max-height:12rem"></div>
+    </div>
+
+    <button class="btn" id="btnNewUid">Mint a new UID</button>
+    <p class="hint">On a real unit the UID is burned in at PCB flashing, together
+       with the unique key pair described in section 04 of the proposal.</p>
+  </div>
+</div>
+
+<audio id="talkback" autoplay></audio>
+
+<script src="/assets/signal.js"></script>
+<script src="/assets/rtc.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var log = new RTC.Logger($('log'), 300);
+  function say(t, k) { log.add(t, k); }
+
+  var uid = RTC.deviceUid();
+  $('uid').textContent = uid;
+
+  var stream = null;
+  var sig = null;
+  var peers = new Map();
+  var facing = 'environment';
+  var torchOn = false;
+  var speakerOn = true;
+  var shots = 0;
+  var running = false;
+  var pin = null;
+
+  /* ================================================== secure check == */
+
+  if (!RTC.secureOk()) {
+    $('secure').textContent = 'insecure';
+    $('secure').className = 'pill err';
+    $('empty').innerHTML =
+      '<strong>This page needs a secure origin</strong>' +
+      '<span>Browsers only expose the camera over HTTPS, or on localhost. Open the ' +
+      'https:// address the server printed and accept the certificate warning once.</span>';
+    $('btnStart').disabled = true;
+  } else {
+    $('secure').textContent = 'secure';
+    $('secure').className = 'pill on';
+  }
+
+  /* ========================================================= media == */
+
+  function constraints() {
+    return {
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: {
+        facingMode: { ideal: facing },
+        width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 },
+      },
+    };
+  }
+
+  function describeTrack() {
+    if (!stream) return;
+    var vt = stream.getVideoTracks()[0];
+    if (!vt) return;
+    var s = vt.getSettings ? vt.getSettings() : {};
+    var res = (s.width || '?') + '×' + (s.height || '?');
+    var front = (s.facingMode || facing) === 'user';
+
+    $('sRes').textContent = res;
+    $('resPill').textContent = res + (s.frameRate ? ' · ' + Math.round(s.frameRate) + 'fps' : '');
+    $('resPill').hidden = false;
+    $('sFacing').textContent = front ? 'front' : 'rear';
+    $('stage').classList.toggle('mirror', front);
+
+    var caps = vt.getCapabilities ? vt.getCapabilities() : {};
+    $('btnTorch').disabled = !('torch' in caps);
+  }
+
+  function showEmpty(title, detail) {
+    var e = $('empty');
+    e.textContent = '';
+    var s = document.createElement('strong');
+    s.textContent = title;
+    var d = document.createElement('span');
+    d.textContent = detail;                 // never innerHTML: err.message is not ours
+    e.appendChild(s);
+    e.appendChild(d);
+    e.hidden = false;
+  }
+
+  async function start() {
+    $('btnStart').disabled = true;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints());
+    } catch (err) {
+      say('camera failed: ' + err.name + ' — ' + err.message, 'warn');
+      $('btnStart').disabled = false;
+      showEmpty('Could not open the camera', err.name + ': ' + err.message);
+      return;
+    }
+
+    running = true;
+    $('preview').srcObject = stream;
+    $('empty').hidden = true;
+    $('recPill').hidden = false;
+    $('shotPill').hidden = false;
+    $('btnStart').disabled = false;
+    $('btnStart').classList.remove('go');
+    $('btnStart').classList.add('active');
+    $('startLabel').textContent = 'Stop';
+    $('startIcon').setAttribute('href', '#i-stop');
+    ['btnSwitch', 'btnShot', 'btnSpeaker'].forEach(function (b) { $(b).disabled = false; });
+
+    describeTrack();
+    say('camera opened', 'ok');
+
+    /* Mint a fresh pairing PIN for this session and register with its hash.
+     * The PIN itself never leaves this device. */
+    pin = RTC.mintPin();
+    $('pin').textContent = pin;
+    $('pinRow').hidden = false;
+
+    RTC.pairHash(uid, pin).then(function (hash) {
+      connectSignalling(hash);
+      say('pairing PIN ' + pin + ' — the viewer needs this to connect', 'ctrl');
+    }).catch(function (e) {
+      say('could not derive the pairing proof: ' + e.message, 'warn');
+    });
+  }
+
+  function stop() {
+    running = false;
+    peers.forEach(function (p) { try { p.pc.close(); } catch (_) {} });
+    peers.clear();
+    updateViewers();
+
+    if (sig) { sig.close(); sig = null; }
+    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+
+    $('preview').srcObject = null;
+    showEmpty('Camera is off', 'Press Start to go live again.');
+    $('pinRow').hidden = true;
+    pin = null;
+    $('recPill').hidden = true;
+    $('resPill').hidden = true;
+    $('shotPill').hidden = true;
+    $('btnStart').disabled = false;
+    $('btnStart').classList.add('go');
+    $('btnStart').classList.remove('active');
+    $('startLabel').textContent = 'Start';
+    $('startIcon').setAttribute('href', '#i-play');
+    ['btnSwitch', 'btnTorch', 'btnShot', 'btnSpeaker'].forEach(function (b) { $(b).disabled = true; });
+    say('camera stopped');
+  }
+
+  /* ==================================================== signalling == */
+
+  function connectSignalling(authHash) {
+    sig = new Signal(uid, 'camera', authHash);
+
+    sig.on('ready', function () { say('registered ' + uid + ' with the control plane', 'ctrl'); });
+    sig.on('down', function () { say('signalling connection lost — retrying', 'warn'); });
+    sig.on('failed', function () {
+      say('could not register with the control plane — stopping', 'warn');
+      if (running) stop();
+    });
+
+    sig.on('hello', function (m) {
+      if (m.role !== 'viewer') return;
+      say('viewer ' + m.from.slice(0, 8) + ' joined — sending offer', 'ctrl');
+      offerTo(m.from);
+    });
+
+    /* If this camera restarts while a viewer is still in the room, no `hello`
+     * arrives for that viewer — it was already there. Offer to anyone the first
+     * roster reports so the feed comes back without the viewer reconnecting. */
+    sig.on('roster', function (m) {
+      (m.peers || []).forEach(function (p) {
+        if (p.role === 'viewer' && p.id !== sig.id && !peers.has(p.id)) {
+          say('viewer ' + p.id.slice(0, 8) + ' already present — sending offer', 'ctrl');
+          offerTo(p.id);
+        }
+      });
+    });
+
+    sig.on('bye', function (m) {
+      var p = peers.get(m.from);
+      if (p) { try { p.pc.close(); } catch (_) {} peers.delete(m.from); }
+      updateViewers();
+      say('viewer ' + m.from.slice(0, 8) + ' left');
+    });
+
+    sig.on('signal', function (m) {
+      var p = peers.get(m.from);
+      if (!p) return;
+
+      if (m.type === 'answer') {
+        p.pc.setRemoteDescription(m.data).then(function () {
+          say('answer accepted from ' + m.from.slice(0, 8), 'ctrl');
+          p.pendingIce.forEach(function (c) { p.pc.addIceCandidate(c).catch(function () {}); });
+          p.pendingIce = [];
+        }).catch(function (e) { say('answer rejected: ' + e.message, 'warn'); });
+      } else if (m.type === 'ice' && m.data) {
+        if (p.pc.remoteDescription) p.pc.addIceCandidate(m.data).catch(function () {});
+        else p.pendingIce.push(m.data);
+      }
+    });
+
+    sig.connect();
+  }
+
+  /* ========================================================= peers == */
+
+  function offerTo(viewerId) {
+    var prior = peers.get(viewerId);              // never leak a half-open peer
+    if (prior) { try { prior.pc.close(); } catch (_) {} peers.delete(viewerId); }
+
+    var pc = new RTCPeerConnection(RTC.CONFIG);
+    var entry = { pc: pc, dc: null, pendingIce: [], videoSender: null };
+    peers.set(viewerId, entry);
+
+    var vt = stream.getVideoTracks()[0];
+    var at = stream.getAudioTracks()[0];
+
+    var vTx = pc.addTransceiver(vt, { direction: 'sendonly', streams: [stream] });
+    entry.videoSender = vTx.sender;
+
+    if (at) pc.addTransceiver(at, { direction: 'sendrecv', streams: [stream] });
+    else pc.addTransceiver('audio', { direction: 'recvonly' });
+
+    var dc = pc.createDataChannel('ctl', { ordered: true });
+    entry.dc = dc;
+    dc.onopen = function () { say('control channel open to ' + viewerId.slice(0, 8), 'ok'); sendState(dc); };
+    dc.onmessage = function (e) { onCommand(e.data, dc); };
+
+    pc.onicecandidate = function (e) { if (e.candidate) sig.send('ice', e.candidate.toJSON(), viewerId); };
+
+    pc.ontrack = function (e) {
+      if (e.track.kind !== 'audio') return;
+      say('talk-back audio track received', 'media');
+      var el = $('talkback');
+      el.srcObject = e.streams[0] || new MediaStream([e.track]);
+      el.muted = !speakerOn;
+      el.play().catch(function () {});
+    };
+
+    pc.onconnectionstatechange = function () {
+      var st = pc.connectionState;
+      say('peer ' + viewerId.slice(0, 8) + ': ' + st, st === 'connected' ? 'ok' : null);
+      /* 'disconnected' can recover, so give it a grace period rather than
+       * dropping immediately — but do not let a dead entry leak forever. */
+      if (st === 'failed' || st === 'closed') {
+        try { pc.close(); } catch (_) {}
+        peers.delete(viewerId);
+      } else if (st === 'disconnected') {
+        setTimeout(function () {
+          var cur = peers.get(viewerId);
+          if (cur && cur.pc === pc && pc.connectionState === 'disconnected') {
+            try { pc.close(); } catch (_) {}
+            peers.delete(viewerId);
+            say('viewer ' + viewerId.slice(0, 8) + ' did not recover — dropped');
+            updateViewers();
+          }
+        }, 12000);
+      }
+      updateViewers();
+    };
+
+    pc.createOffer()
+      .then(function (o) { return pc.setLocalDescription(o); })
+      .then(function () { return sig.send('offer', pc.localDescription, viewerId); })
+      .then(function () { say('offer sent to ' + viewerId.slice(0, 8), 'ctrl'); })
+      .catch(function (e) { say('offer failed: ' + e.message, 'warn'); });
+  }
+
+  function updateViewers() {
+    var n = 0;
+    peers.forEach(function (p) {
+      if (p.pc.connectionState === 'connected' || p.pc.connectionState === 'connecting') n++;
+    });
+    $('sViewers').textContent = n;
+    $('viewerPill').textContent = n === 1 ? '1 viewer' : n + ' viewers';
+    $('viewerPill').className = 'pill ' + (n ? 'ctrl' : '');
+  }
+
+  /* ====================================================== commands == */
+
+  function sendState(dc) {
+    if (!dc || dc.readyState !== 'open') return;
+    var vt = stream && stream.getVideoTracks()[0];
+    var s = vt && vt.getSettings ? vt.getSettings() : {};
+    var caps = vt && vt.getCapabilities ? vt.getCapabilities() : {};
+    try {
+      dc.send(JSON.stringify({
+        state: {
+          facing: (s.facingMode || facing) === 'user' ? 'front' : 'rear',
+          width: s.width || 0, height: s.height || 0,
+          torch: torchOn, torchCapable: 'torch' in caps, shots: shots,
+        },
+      }));
+    } catch (_) {}
+  }
+
+  function broadcastState() { peers.forEach(function (p) { sendState(p.dc); }); }
+
+  function onCommand(raw, dc) {
+    var msg;
+    try { msg = JSON.parse(raw); } catch (_) { return; }
+    if (!msg.cmd) return;
+
+    if (msg.cmd === 'capture') {
+      say('remote capture requested by the app', 'ctrl');
+      saveStill().then(function (info) {
+        if (dc.readyState === 'open') {
+          dc.send(JSON.stringify({ ack: 'capture', ok: !!info, name: info && info.name, bytes: info && info.bytes }));
+        }
+        broadcastState();
+      });
+    } else if (msg.cmd === 'torch') {
+      setTorch(!!msg.on).then(function (ok) {
+        if (dc.readyState === 'open') dc.send(JSON.stringify({ ack: 'torch', ok: ok, on: torchOn }));
+        broadcastState();
+      });
+    } else if (msg.cmd === 'switch') {
+      switchCamera().then(function () {
+        if (dc.readyState === 'open') dc.send(JSON.stringify({ ack: 'switch', ok: true }));
+        broadcastState();
+      });
+    } else if (msg.cmd === 'state') {
+      sendState(dc);
+    }
+  }
+
+  /* ======================================================= actions == */
+
+  function saveStill() {
+    return new Promise(function (resolve) {
+      var v = $('preview');
+      if (!v.videoWidth) return resolve(null);
+
+      var c = document.createElement('canvas');
+      c.width = v.videoWidth; c.height = v.videoHeight;
+      c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+
+      c.toBlob(function (blob) {
+        if (!blob) return resolve(null);
+        var d = new Date();
+        var p2 = function (x) { return String(x).padStart(2, '0'); };
+        var name = uid + '_' + d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) +
+                   '_' + p2(d.getHours()) + p2(d.getMinutes()) + p2(d.getSeconds()) + '.jpg';
+
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = name;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+
+        shots++;
+        $('sShots').textContent = shots;
+        $('shotPill').textContent = shots + ' saved';
+        say('still saved to this device: ' + name + ' (' + RTC.fmtBytes(blob.size) + ')', 'ok');
+        resolve({ name: name, bytes: blob.size });
+      }, 'image/jpeg', 0.92);
+    });
+  }
+
+  function setTorch(on) {
+    var vt = stream && stream.getVideoTracks()[0];
+    if (!vt || !vt.applyConstraints) return Promise.resolve(false);
+    return vt.applyConstraints({ advanced: [{ torch: on }] })
+      .then(function () {
+        torchOn = on;
+        $('btnTorch').classList.toggle('active', on);
+        say('torch ' + (on ? 'on' : 'off'));
+        return true;
+      })
+      .catch(function (e) { say('torch unavailable: ' + e.message, 'warn'); return false; });
+  }
+
+  async function switchCamera() {
+    if (!stream) return;
+    facing = (facing === 'environment') ? 'user' : 'environment';
+    torchOn = false;
+    $('btnTorch').classList.remove('active');
+
+    var old = stream.getVideoTracks()[0];
+    var fresh;
+    try {
+      fresh = await navigator.mediaDevices.getUserMedia({ video: constraints().video, audio: false });
+    } catch (e) {
+      say('flip failed: ' + e.message, 'warn');
+      facing = (facing === 'environment') ? 'user' : 'environment';
+      return;
+    }
+
+    var nt = fresh.getVideoTracks()[0];
+    peers.forEach(function (p) { if (p.videoSender) p.videoSender.replaceTrack(nt).catch(function () {}); });
+
+    if (old) { stream.removeTrack(old); old.stop(); }
+    stream.addTrack(nt);
+    $('preview').srcObject = stream;
+    describeTrack();
+    say('flipped to ' + (facing === 'user' ? 'front' : 'rear') + ' camera');
+  }
+
+  /* ======================================================== wiring == */
+
+  $('btnStart').onclick = function () { running ? stop() : start(); };
+  $('btnSwitch').onclick = function () { switchCamera().then(broadcastState); };
+  $('btnTorch').onclick = function () { setTorch(!torchOn).then(broadcastState); };
+  $('btnShot').onclick = function () { saveStill().then(broadcastState); };
+
+  $('btnSpeaker').onclick = function () {
+    speakerOn = !speakerOn;
+    $('talkback').muted = !speakerOn;
+    $('spkIcon').setAttribute('href', speakerOn ? '#i-vol-on' : '#i-vol-off');
+    say('talk-back speaker ' + (speakerOn ? 'on' : 'off'));
+  };
+
+  $('btnCopy').onclick = function () {
+    if (navigator.clipboard) navigator.clipboard.writeText(uid).then(function () { say('UID copied'); });
+  };
+
+  $('btnNewPin').onclick = function () {
+    if (!running) return;
+    if (peers.size && !confirm('Viewers are connected. A new PIN will drop them. Continue?')) return;
+    say('rotating pairing PIN', 'ctrl');
+    stop();
+    setTimeout(start, 250);
+  };
+
+  $('btnDetails').onclick = function () { $('sheet').hidden = false; };
+  $('btnCloseSheet').onclick = function () { $('sheet').hidden = true; };
+  $('sheet').onclick = function (e) { if (e.target === $('sheet')) $('sheet').hidden = true; };
+
+  $('btnNewUid').onclick = function () {
+    if (peers.size && !confirm('Viewers are connected. Minting a new UID will drop them. Continue?')) return;
+    try { localStorage.removeItem('lessai.p2pcam.uid'); } catch (_) {}
+    if (running) stop();
+    uid = RTC.deviceUid();
+    $('uid').textContent = uid;
+    say('new UID minted: ' + uid, 'ctrl');
+  };
+
+  window.addEventListener('pagehide', function () { if (sig) sig.close(); });
+
+  say('device page ready — UID ' + uid, 'ctrl');
+  updateViewers();
+})();
+</script>
+</body>
+</html>

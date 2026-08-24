@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Viewer · P2P camera prototype</title>
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<script src="/assets/icons.js"></script>
+
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand">less AI <small>monitoring app</small></div>
+    <div class="phases" id="phases" title="signalling · negotiating · connecting · live">
+      <span class="phase" data-p="1"></span>
+      <span class="phase" data-p="2"></span>
+      <span class="phase" data-p="3"></span>
+      <span class="phase" data-p="4"></span>
+    </div>
+    <span class="pill" id="pathPill" hidden>—</span>
+    <span class="pill" id="link"><span class="dot"></span><span id="linkText">idle</span></span>
+  </div>
+
+  <div class="body-split">
+
+    <!-- ============================================== sidebar ====== -->
+    <div class="col">
+
+      <div class="card">
+        <header>Pair with a camera <span class="right" id="camCount">0 online</span></header>
+        <div class="pad">
+          <div class="pair">
+            <div class="cams" id="cams"></div>
+            <p class="hint" id="noCams">No cameras online. Open <b>/camera.html</b>
+               on a phone and press Start.</p>
+
+            <div class="pair-sep">then enter its PIN</div>
+
+            <div class="field">
+              <label class="lbl" for="uidInput">Camera UID</label>
+              <input class="input" id="uidInput" placeholder="LESSAI-000000-XXX"
+                     autocapitalize="characters" autocomplete="off" spellcheck="false">
+            </div>
+
+            <div class="field">
+              <label class="lbl" for="pinInput">Pairing PIN
+                <span class="right" id="pinCount">0/6</span></label>
+              <input class="pin-input" id="pinInput" placeholder="······" inputmode="numeric"
+                     maxlength="6" autocomplete="one-time-code" spellcheck="false"
+                     aria-describedby="pinHelp">
+            </div>
+
+            <div class="row">
+              <button class="btn primary grow" id="btnConnect" disabled>
+                <svg class="icon"><use href="#i-link"/></svg>Connect</button>
+              <button class="btn" id="btnDisconnect" disabled title="Disconnect">
+                <svg class="icon"><use href="#i-power"/></svg></button>
+            </div>
+
+            <div class="note warn" id="authError" hidden><p id="authErrorText"></p></div>
+            <p class="hint" id="pinHelp">The PIN is shown on the camera's screen and
+               changes every session. It is never sent to the server — only a hash
+               of it is.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <header>Control plane</header>
+        <div class="strip" style="grid-template-columns:repeat(2,1fr);border:none">
+          <div class="tile"><b id="sSignal" class="ctrl">—</b><span>signalling relayed</span></div>
+          <div class="tile"><b id="sMedia" class="accent">0 B</b><span>media through server</span></div>
+        </div>
+      </div>
+
+      <div class="card" style="flex:1;min-height:9rem">
+        <header>Event log <span class="right" id="logCount">0</span></header>
+        <div class="log" id="log"></div>
+      </div>
+
+    </div>
+
+    <!-- ================================================= main ====== -->
+    <div class="col">
+
+      <div class="stage" id="stage">
+        <!-- starts muted on purpose: prevents feedback when both devices are in
+             one room, and keeps autoplay reliable. Press Listen to open it. -->
+        <video id="feed" autoplay playsinline muted></video>
+        <div class="stage-empty" id="empty">
+          <svg class="icon"><use href="#i-nofeed"/></svg>
+          <strong>No camera connected</strong>
+          <span>Pick a camera on the left, enter the PIN shown on its screen,
+                and press Connect.</span>
+        </div>
+        <div class="overlay tl">
+          <span class="pill err" id="livePill" hidden><span class="dot live"></span>LIVE</span>
+          <span class="pill" id="resPill" hidden>—</span>
+        </div>
+        <div class="overlay tr">
+          <span class="pill err" id="micPill" hidden><span class="dot live"></span>MIC OPEN</span>
+        </div>
+        <div class="overlay bl">
+          <span class="pill" id="camPill" hidden>—</span>
+        </div>
+      </div>
+
+      <div class="bar">
+        <button class="btn" id="btnAudio" disabled>
+          <svg class="icon"><use href="#i-vol-off" id="volIcon"/></svg><span id="audioLabel">Listen</span></button>
+        <button class="btn" id="btnTalk" disabled>
+          <svg class="icon"><use href="#i-mic"/></svg><span id="talkLabel">Talk</span></button>
+        <span class="sep"></span>
+        <button class="btn" id="btnRemoteShot" disabled>
+          <svg class="icon"><use href="#i-camera"/></svg>Capture on camera</button>
+        <button class="btn" id="btnLocalShot" disabled>
+          <svg class="icon"><use href="#i-save"/></svg>Save here</button>
+        <span class="sep"></span>
+        <button class="btn" id="btnFlip" disabled title="Flip the phone's front/rear camera">
+          <svg class="icon"><use href="#i-flip"/></svg></button>
+        <button class="btn" id="btnTorch" disabled title="Toggle the phone's torch">
+          <svg class="icon"><use href="#i-flash"/></svg></button>
+        <span class="spacer"></span>
+        <button class="btn ghost" id="btnFull" disabled>
+          <svg class="icon"><use href="#i-expand"/></svg></button>
+      </div>
+
+      <div class="strip">
+        <div class="tile"><b id="sRes">—</b><span>resolution</span></div>
+        <div class="tile"><b id="sFps">—</b><span>frames / sec</span></div>
+        <div class="tile"><b id="sRate" class="accent big">—</b><span>video bitrate</span></div>
+        <div class="tile"><b id="sPath" class="ctrl big">—</b><span>connection path</span></div>
+        <div class="tile"><b id="sRtt">—</b><span>round trip</span></div>
+        <div class="tile"><b id="sLoss">—</b><span>packets lost</span></div>
+      </div>
+
+      <div class="pathwrap">
+
+        <div class="card">
+          <header>Where the data actually goes</header>
+          <div class="pathfig">
+            <svg id="pathSvg" viewBox="0 0 440 200" role="img"
+                 aria-label="Video travels directly from the camera to this viewer; the control plane below carries only signalling and zero media.">
+              <defs>
+                <marker id="vArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/>
+                </marker>
+              </defs>
+
+              <!-- endpoints -->
+              <rect x="8" y="16" width="104" height="48" fill="var(--surface-2)" stroke="var(--rule-strong)"/>
+              <text x="60" y="38" text-anchor="middle" font-family="var(--f-mono)" font-size="12.5" fill="var(--ink)">CAMERA</text>
+              <text x="60" y="53" text-anchor="middle" font-family="var(--f-mono)" font-size="11.5" fill="var(--muted)">the phone</text>
+
+              <rect x="328" y="16" width="104" height="48" fill="var(--surface-2)" stroke="var(--rule-strong)"/>
+              <text x="380" y="38" text-anchor="middle" font-family="var(--f-mono)" font-size="12.5" fill="var(--ink)">VIEWER</text>
+              <text x="380" y="53" text-anchor="middle" font-family="var(--f-mono)" font-size="11.5" fill="var(--muted)">this laptop</text>
+
+              <!-- direct media path -->
+              <line x1="112" y1="40" x2="328" y2="40" stroke="var(--accent)" stroke-width="2" marker-end="url(#vArrow)"/>
+              <g id="flowDots">
+                <circle class="flowdot" cx="120" cy="40" r="3.1" style="animation-delay:0s"/>
+                <circle class="flowdot" cx="120" cy="40" r="3.1" style="animation-delay:-.26s"/>
+                <circle class="flowdot" cx="120" cy="40" r="3.1" style="animation-delay:-.52s"/>
+                <circle class="flowdot" cx="120" cy="40" r="3.1" style="animation-delay:-.78s"/>
+                <circle class="flowdot" cx="120" cy="40" r="3.1" style="animation-delay:-1.04s"/>
+                <circle class="flowdot" cx="120" cy="40" r="3.1" style="animation-delay:-1.3s"/>
+              </g>
+              <text x="220" y="22" text-anchor="middle" font-family="var(--f-mono)" font-size="11.5" fill="var(--accent)">encrypted video + two-way audio</text>
+              <text id="flowRate" x="220" y="60" text-anchor="middle" font-family="var(--f-mono)" font-size="11.5" fill="var(--muted)">not connected</text>
+
+              <!-- control links -->
+              <path d="M60 64 L60 100 L168 100 L168 130" fill="none" stroke="var(--ctrl)" stroke-width="1.1" stroke-dasharray="4 4" opacity=".8"/>
+              <path d="M380 64 L380 100 L272 100 L272 130" fill="none" stroke="var(--ctrl)" stroke-width="1.1" stroke-dasharray="4 4" opacity=".8"/>
+              <text x="220" y="96" text-anchor="middle" font-family="var(--f-mono)" font-size="11.5" fill="var(--ctrl)">find each other, then fall silent</text>
+
+              <!-- control plane -->
+              <rect x="120" y="130" width="200" height="60" fill="var(--ctrl-dim)" stroke="var(--ctrl)"/>
+              <text x="220" y="148" text-anchor="middle" font-family="var(--f-mono)" font-size="11" fill="var(--ctrl)" letter-spacing="1">CONTROL PLANE</text>
+              <text x="134" y="167" font-family="var(--f-mono)" font-size="11.5" fill="var(--muted)">signalling</text>
+              <text id="pathSig" x="306" y="167" text-anchor="end" font-family="var(--f-mono)" font-size="11.5" fill="var(--ctrl)">—</text>
+              <text x="134" y="182" font-family="var(--f-mono)" font-size="11.5" fill="var(--muted)">media</text>
+              <text id="pathMedia" x="306" y="182" text-anchor="end" font-family="var(--f-mono)" font-size="12" fill="var(--accent)" font-weight="600">0 B</text>
+            </svg>
+          </div>
+        </div>
+
+        <div class="card">
+          <header>Video throughput <span class="right" id="sparkPeak">—</span></header>
+          <div class="pathfig">
+            <canvas class="spark" id="spark" width="600" height="160"></canvas>
+            <p class="hint" style="margin:.4rem 0 0">Last 60 seconds. Every bit of this
+               crossed the network directly between the two devices.</p>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/assets/signal.js"></script>
+<script src="/assets/rtc.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var log = new RTC.Logger($('log'), 300);
+  var logN = 0;
+  function say(t, k) { log.add(t, k); $('logCount').textContent = ++logN; }
+
+  var sig = null, pc = null, dc = null;
+  var micStream = null, micTrack = null;
+  var pendingIce = [];
+  var statsTimer = null, prevStats = null;
+  var talking = false;
+  var selectedUid = null;
+  var history = [];           // rolling bitrate samples
+  var peakRate = 0;
+
+  function setLink(state, text) {
+    $('link').className = 'pill ' + state;
+    $('linkText').textContent = text;
+  }
+
+  /* phase 1 signalling · 2 negotiating · 3 connecting · 4 live */
+  function setPhase(n) {
+    var nodes = document.querySelectorAll('.phase');
+    for (var i = 0; i < nodes.length; i++) {
+      var p = i + 1;
+      nodes[i].className = 'phase' + (p < n ? ' done' : (p === n ? ' active' : ''));
+    }
+  }
+  setPhase(0);
+
+  /* ============================================== registry polling == */
+
+  function pollCameras() {
+    fetch('/api/cameras').then(function (r) { return r.json(); }).then(function (d) {
+      var list = d.cameras || [];
+      $('camCount').textContent = list.length + ' online';
+      $('noCams').hidden = list.length > 0;
+
+      var box = $('cams');
+      box.innerHTML = '';
+      list.forEach(function (c) {
+        var b = document.createElement('button');
+        b.className = 'cam' + (c.uid === selectedUid ? ' sel' : '');
+        b.type = 'button';
+
+        var dot = document.createElement('span');
+        dot.className = 'dot';
+        dot.style.color = 'var(--ok)';
+
+        var name = document.createElement('span');
+        name.textContent = c.uid;
+
+        var meta = document.createElement('span');
+        meta.className = 'meta';
+        meta.textContent = c.viewers === 1 ? '1 viewer' : c.viewers + ' viewers';
+
+        b.appendChild(dot); b.appendChild(name); b.appendChild(meta);
+        b.onclick = function () {
+          $('uidInput').value = c.uid;
+          selectedUid = c.uid;
+          clearAuthError();
+          refreshPairState();
+          $('pinInput').focus();        // UID is public; the PIN is the gate
+        };
+        box.appendChild(b);
+      });
+    }).catch(function () {});
+  }
+
+  function pollServerStats() {
+    fetch('/api/stats').then(function (r) { return r.json(); }).then(function (d) {
+      var sigTxt = RTC.fmtBytes(d.signallingBytes);
+      var medTxt = RTC.fmtBytes(d.mediaBytes);
+      $('sSignal').textContent = sigTxt;
+      $('sMedia').textContent = medTxt;
+      $('pathSig').textContent = sigTxt;
+      $('pathMedia').textContent = medTxt;
+    }).catch(function () {});
+  }
+
+  setInterval(pollCameras, 2000);
+  setInterval(pollServerStats, 2000);
+  pollCameras();
+  pollServerStats();
+
+  /* =========================================================== mic == */
+
+  async function ensureMic() {
+    if (micTrack) return micTrack;
+    if (!RTC.secureOk()) return null;
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: false,
+      });
+      micTrack = micStream.getAudioTracks()[0];
+      micTrack.enabled = false;
+      say('microphone ready for talk-back (closed until you press Talk)', 'ok');
+      return micTrack;
+    } catch (err) {
+      say('no microphone: ' + err.name + ' — watch and listen only', 'warn');
+      return null;
+    }
+  }
+
+  /* ======================================================= connect == */
+
+  function showAuthError(text) {
+    $('authErrorText').textContent = text;
+    $('authError').hidden = false;
+  }
+  function clearAuthError() { $('authError').hidden = true; }
+
+  async function connect() {
+    var uid = ($('uidInput').value || '').trim().toUpperCase();
+    var pin = ($('pinInput').value || '').trim();
+
+    clearAuthError();
+    if (!uid) { showAuthError('Enter the camera UID.'); $('uidInput').focus(); return; }
+    if (!/^\d{6}$/.test(pin)) {
+      showAuthError('Enter the 6-digit PIN shown on the camera device.');
+      $('pinInput').focus();
+      return;
+    }
+
+    disconnect(true);
+    selectedUid = uid;
+    pollCameras();
+
+    $('btnConnect').disabled = true;
+    setLink('warn', 'checking');
+    setPhase(1);
+
+    var authHash;
+    try {
+      authHash = await RTC.pairHash(uid, pin);
+    } catch (err) {
+      showAuthError('Could not derive the pairing proof: ' + err.message);
+      refreshPairState();
+      setLink('', 'idle'); setPhase(0);
+      return;
+    }
+
+    /* Ask before joining, so a wrong PIN produces a message rather than an
+     * EventSource that silently retries against a 403 forever. */
+    var probe = await Signal.check(uid, authHash);
+    if (!probe.ok) {
+      showAuthError(probe.error);
+      say('pairing refused: ' + probe.error, 'warn');
+      refreshPairState();
+      setLink('err', 'refused');
+      setPhase(0);
+      return;
+    }
+
+    setLink('warn', 'connecting');
+    say('joining ' + uid, 'ctrl');
+
+    await ensureMic();
+
+    sig = new Signal(uid, 'viewer', authHash);
+
+    sig.on('open', function () { setLink('warn', 'signalling'); });
+    sig.on('down', function () { setLink('err', 'signalling lost'); });
+    sig.on('failed', function () {
+      showAuthError('Lost the signalling connection and could not re-establish it.');
+      setLink('err', 'disconnected');
+    });
+    sig.on('ready', function () { say('registered with the control plane as a viewer', 'ctrl'); });
+
+    sig.on('roster', function (m) {
+      var hasCam = (m.peers || []).some(function (p) { return p.role === 'camera'; });
+      if (!hasCam) say('no camera online for ' + uid + ' yet — waiting', 'warn');
+    });
+
+    sig.on('bye', function (m) {
+      if (m.role === 'camera') { say('camera went offline', 'warn'); teardownPeer(); setLink('warn', 'camera offline'); }
+    });
+
+    sig.on('signal', function (m) {
+      if (m.type === 'offer') onOffer(m);
+      else if (m.type === 'ice' && m.data) {
+        if (pc && pc.remoteDescription) pc.addIceCandidate(m.data).catch(function () {});
+        else pendingIce.push(m.data);
+      }
+    });
+
+    sig.connect();
+    $('btnDisconnect').disabled = false;
+  }
+
+  async function onOffer(m) {
+    say('offer received — answering', 'ctrl');
+    setPhase(2);
+
+    /* A second offer (camera restarted) must not orphan the first connection. */
+    if (pc) { try { pc.close(); } catch (_) {} pc = null; stopStats(); }
+
+    pc = new RTCPeerConnection(RTC.CONFIG);
+
+    pc.ontrack = function (e) {
+      if (e.track.kind === 'video') {
+        $('feed').srcObject = e.streams[0] || new MediaStream([e.track]);
+        $('empty').hidden = true;
+        $('livePill').hidden = false;
+        say('video track attached', 'media');
+      } else {
+        say('audio track attached', 'media');
+      }
+    };
+
+    pc.ondatachannel = function (e) {
+      dc = e.channel;
+      dc.onopen = function () {
+        say('control channel open', 'ok');
+        ['btnRemoteShot', 'btnFlip', 'btnTorch'].forEach(function (b) { $(b).disabled = false; });
+        try { dc.send(JSON.stringify({ cmd: 'state' })); } catch (_) {}
+      };
+      dc.onmessage = function (ev) { onDeviceMessage(ev.data); };
+      dc.onclose = function () {
+        ['btnRemoteShot', 'btnFlip', 'btnTorch'].forEach(function (b) { $(b).disabled = true; });
+      };
+    };
+
+    pc.onicecandidate = function (e) { if (e.candidate) sig.send('ice', e.candidate.toJSON()); };
+
+    pc.onconnectionstatechange = function () {
+      var st = pc.connectionState;
+      say('peer connection: ' + st, st === 'connected' ? 'ok' : (st === 'failed' ? 'warn' : null));
+      if (st === 'connecting') setPhase(3);
+      if (st === 'connected') {
+        setLink('on', 'live');
+        setPhase(4);
+        document.getElementById('pathSvg').classList.add('flowing');
+        ['btnAudio', 'btnFull', 'btnLocalShot'].forEach(function (b) { $(b).disabled = false; });
+        if (micTrack) $('btnTalk').disabled = false;
+        startStats();
+      } else if (st === 'failed' || st === 'disconnected') {
+        setLink('err', st);
+        document.getElementById('pathSvg').classList.remove('flowing');
+      }
+    };
+
+    try {
+      await pc.setRemoteDescription(m.data);
+
+      var audioTx = pc.getTransceivers().filter(function (t) {
+        return t.receiver && t.receiver.track && t.receiver.track.kind === 'audio';
+      })[0];
+
+      if (audioTx) {
+        if (micTrack) { await audioTx.sender.replaceTrack(micTrack); audioTx.direction = 'sendrecv'; }
+        else audioTx.direction = 'recvonly';
+      }
+
+      var answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await sig.send('answer', pc.localDescription);
+      say('answer sent', 'ctrl');
+
+      pendingIce.forEach(function (c) { pc.addIceCandidate(c).catch(function () {}); });
+      pendingIce = [];
+    } catch (err) {
+      say('negotiation failed: ' + err.message, 'warn');
+    }
+  }
+
+  function onDeviceMessage(raw) {
+    var msg;
+    try { msg = JSON.parse(raw); } catch (_) { return; }
+
+    if (msg.state) {
+      var s = msg.state;
+      $('camPill').hidden = false;
+      $('camPill').textContent = s.facing + ' · ' + s.width + '×' + s.height +
+                                 (s.shots ? ' · ' + s.shots + ' saved' : '');
+      $('btnTorch').disabled = !s.torchCapable;
+      $('btnTorch').classList.toggle('active', !!s.torch);
+      $('btnTorch').title = s.torchCapable ? 'Toggle the phone torch' : 'This device reports no torch';
+    }
+
+    if (msg.ack === 'capture') {
+      if (msg.ok) say('camera confirmed: ' + msg.name + ' written to device storage (' + RTC.fmtBytes(msg.bytes) + ')', 'ok');
+      else say('camera could not capture a frame', 'warn');
+    } else if (msg.ack === 'torch') {
+      say('camera torch ' + (msg.on ? 'on' : 'off') + (msg.ok ? '' : ' (unsupported)'), msg.ok ? null : 'warn');
+    } else if (msg.ack === 'switch') {
+      say('camera flipped');
+    }
+  }
+
+  /* ========================================================= stats == */
+
+  function startStats() {
+    stopStats();
+    history = [];
+    peakRate = 0;
+    statsTimer = setInterval(function () {
+      if (!pc) return;
+      RTC.readStats(pc, prevStats).then(function (s) {
+        prevStats = s;
+
+        $('sRes').textContent = s.width ? s.width + '×' + s.height : '—';
+        $('sFps').textContent = s.fps ? Math.round(s.fps) : '—';
+        $('sRtt').textContent = s.rtt != null ? Math.round(s.rtt) + ' ms' : '—';
+        $('sLoss').textContent = s.packetsLost;
+        $('sPath').textContent = RTC.pathLabel(s.path);
+
+        var rateTxt = s.kbps
+          ? (s.kbps >= 1000 ? (s.kbps / 1000).toFixed(2) + ' Mb/s' : Math.round(s.kbps) + ' kb/s')
+          : '—';
+        $('sRate').textContent = rateTxt;
+        $('flowRate').textContent = s.kbps ? rateTxt + ' flowing directly' : 'connected';
+
+        $('resPill').hidden = !s.width;
+        $('resPill').textContent = s.width + '×' + s.height + ' · ' + Math.round(s.fps) + 'fps';
+
+        $('pathPill').hidden = false;
+        $('pathPill').textContent = RTC.pathLabel(s.path);
+        $('pathPill').className = 'pill ' + (s.path === 'relayed' ? 'warn' : 'ctrl');
+
+        // packet-flow animation speed tracks the real bitrate
+        var dur = s.kbps > 0 ? Math.max(0.45, Math.min(2.6, 1400 / s.kbps)) : 2.6;
+        $('pathSvg').style.setProperty('--flow-dur', dur.toFixed(2) + 's');
+        $('pathSvg').style.setProperty('--flow-dist', '198px');
+
+        history.push(s.kbps || 0);
+        if (history.length > 60) history.shift();
+        if (s.kbps > peakRate) peakRate = s.kbps;
+        $('sparkPeak').textContent = peakRate
+          ? 'peak ' + (peakRate >= 1000 ? (peakRate / 1000).toFixed(1) + ' Mb/s' : Math.round(peakRate) + ' kb/s')
+          : '—';
+        drawSpark();
+      }).catch(function () {});
+    }, 1000);
+  }
+
+  function stopStats() {
+    if (statsTimer) { clearInterval(statsTimer); statsTimer = null; }
+    prevStats = null;
+  }
+
+  /* ===================================================== sparkline == */
+
+  var spark = $('spark');
+  var sctx = spark.getContext('2d');
+
+  function css(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function drawSpark() {
+    var dpr = window.devicePixelRatio || 1;
+    var rect = spark.getBoundingClientRect();
+    if (rect.width && (spark.width !== Math.round(rect.width * dpr))) {
+      spark.width = Math.round(rect.width * dpr);
+      spark.height = Math.round(rect.height * dpr);
+    }
+    var W = spark.width, H = spark.height;
+    sctx.clearRect(0, 0, W, H);
+
+    var pad = 6 * dpr;
+    var max = Math.max(64, Math.max.apply(null, history.concat([1])));
+    var n = 60;
+
+    // grid
+    sctx.strokeStyle = css('--rule');
+    sctx.lineWidth = 1 * dpr;
+    for (var g = 1; g <= 3; g++) {
+      var y = pad + ((H - pad * 2) * g) / 4;
+      sctx.beginPath(); sctx.moveTo(0, y); sctx.lineTo(W, y); sctx.stroke();
+    }
+
+    if (!history.length) return;
+
+    var stepX = W / (n - 1);
+    var pt = function (i, v) {
+      return [i * stepX, H - pad - ((H - pad * 2) * v) / max];
+    };
+    var start = n - history.length;
+
+    // area
+    var grad = sctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, 'rgba(255,93,93,.34)');
+    grad.addColorStop(1, 'rgba(255,93,93,0)');
+    sctx.beginPath();
+    sctx.moveTo(pt(start, history[0])[0], H);
+    for (var i = 0; i < history.length; i++) {
+      var p = pt(start + i, history[i]);
+      sctx.lineTo(p[0], p[1]);
+    }
+    sctx.lineTo(pt(start + history.length - 1, 0)[0], H);
+    sctx.closePath();
+    sctx.fillStyle = grad;
+    sctx.fill();
+
+    // line
+    sctx.beginPath();
+    for (var j = 0; j < history.length; j++) {
+      var q = pt(start + j, history[j]);
+      if (j === 0) sctx.moveTo(q[0], q[1]); else sctx.lineTo(q[0], q[1]);
+    }
+    sctx.strokeStyle = css('--accent');
+    sctx.lineWidth = 1.8 * dpr;
+    sctx.lineJoin = 'round';
+    sctx.stroke();
+
+    // endpoint
+    var last = pt(start + history.length - 1, history[history.length - 1]);
+    sctx.beginPath();
+    sctx.arc(last[0], last[1], 3.2 * dpr, 0, Math.PI * 2);
+    sctx.fillStyle = css('--accent');
+    sctx.fill();
+  }
+
+  window.addEventListener('resize', drawSpark);
+
+  /* ==================================================== disconnect == */
+
+  function teardownPeer() {
+    stopStats();
+    if (pc) { try { pc.close(); } catch (_) {} pc = null; }
+    dc = null;
+    pendingIce = [];
+    history = [];
+    drawSpark();
+    $('feed').srcObject = null;
+    $('empty').hidden = false;
+    $('pathSvg').classList.remove('flowing');
+    $('flowRate').textContent = 'not connected';
+    ['livePill', 'resPill', 'camPill', 'micPill'].forEach(function (i) { $(i).hidden = true; });
+    $('pathPill').hidden = true;
+    ['btnAudio', 'btnTalk', 'btnFull', 'btnRemoteShot', 'btnLocalShot', 'btnFlip', 'btnTorch']
+      .forEach(function (b) { $(b).disabled = true; });
+    ['sRes', 'sFps', 'sRate', 'sRtt', 'sPath', 'sLoss'].forEach(function (i) { $(i).textContent = '—'; });
+    $('sparkPeak').textContent = '—';
+    setPhase(0);
+  }
+
+  function disconnect(quiet) {
+    teardownPeer();
+    if (sig) { sig.close(); sig = null; }
+    if (talking) {
+      talking = false;
+      if (micTrack) micTrack.enabled = false;
+      $('btnTalk').classList.remove('active');
+      $('talkLabel').textContent = 'Talk';
+    }
+    $('btnDisconnect').disabled = true;
+    refreshPairState();
+    setLink('', 'idle');
+    if (!quiet) { selectedUid = null; pollCameras(); say('disconnected'); }
+  }
+
+  /* ======================================================== wiring == */
+
+  $('btnConnect').onclick = connect;
+  $('btnDisconnect').onclick = function () { disconnect(false); };
+
+  $('btnAudio').onclick = function () {
+    var v = $('feed');
+    v.muted = !v.muted;
+    $('audioLabel').textContent = v.muted ? 'Listen' : 'Mute';
+    $('volIcon').setAttribute('href', v.muted ? '#i-vol-off' : '#i-vol-on');
+    $('btnAudio').classList.toggle('teal-active', !v.muted);
+    if (!v.muted) {
+      v.play().catch(function () {});
+      say('listening to the camera — expect feedback if both devices are in one room', 'warn');
+    }
+  };
+
+  $('btnTalk').onclick = function () {
+    if (!micTrack) return;
+    talking = !talking;
+    micTrack.enabled = talking;
+    $('btnTalk').classList.toggle('active', talking);
+    $('talkLabel').textContent = talking ? 'Stop' : 'Talk';
+    $('micPill').hidden = !talking;
+    say(talking ? 'microphone open — speaking to the camera' : 'microphone closed', talking ? 'media' : null);
+  };
+
+  $('btnFull').onclick = function () {
+    var el = $('stage');
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (el.requestFullscreen) el.requestFullscreen().catch(function () {});
+  };
+
+  $('btnRemoteShot').onclick = function () {
+    if (!dc || dc.readyState !== 'open') return;
+    dc.send(JSON.stringify({ cmd: 'capture' }));
+    say('capture command sent over the peer-to-peer data channel', 'ctrl');
+  };
+
+  $('btnFlip').onclick = function () {
+    if (!dc || dc.readyState !== 'open') return;
+    dc.send(JSON.stringify({ cmd: 'switch' }));
+  };
+
+  $('btnTorch').onclick = function () {
+    if (!dc || dc.readyState !== 'open') return;
+    dc.send(JSON.stringify({ cmd: 'torch', on: !$('btnTorch').classList.contains('active') }));
+  };
+
+  $('btnLocalShot').onclick = function () {
+    var v = $('feed');
+    if (!v.videoWidth) return;
+    var c = document.createElement('canvas');
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+    c.toBlob(function (blob) {
+      if (!blob) return;
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'viewer_' + Date.now() + '.jpg';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+      say('still saved on this machine (' + RTC.fmtBytes(blob.size) + ')');
+    }, 'image/jpeg', 0.92);
+  };
+
+  /* Keep the Connect button honest: it lights up exactly when both fields are
+   * valid, so the state of the form is readable without pressing anything. */
+  function refreshPairState() {
+    var uidOk = /^[A-Z0-9][A-Z0-9-]{2,39}$/.test(($('uidInput').value || '').trim().toUpperCase());
+    var pin = ($('pinInput').value || '').trim();
+    $('pinCount').textContent = pin.length + '/6';
+    $('pinInput').classList.toggle('full', pin.length === 6);
+    $('btnConnect').disabled = !(uidOk && pin.length === 6) || !!sig;
+  }
+
+  $('uidInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('pinInput').focus(); });
+  $('uidInput').addEventListener('input', function () { clearAuthError(); refreshPairState(); });
+
+  $('pinInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !$('btnConnect').disabled) connect();
+  });
+  $('pinInput').addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '').slice(0, 6);
+    clearAuthError();
+    refreshPairState();
+  });
+  window.addEventListener('pagehide', function () { if (sig) sig.close(); });
+
+  var qs = new URLSearchParams(location.search);
+  if (qs.get('uid')) $('uidInput').value = qs.get('uid').toUpperCase();
+
+  drawSpark();
+  refreshPairState();
+  say('viewer ready', 'ctrl');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+// Top-level build file.
+//
+// Pinned to a stack that builds against the SDK actually installed on this
+// machine (platform android-31). If you install a newer platform via Android
+// Studio's SDK Manager, compileSdk here can be raised without other changes.
+
+// Kotlin 1.9.10, not 1.7: OkHttp 4.12 ships kotlin-stdlib 1.9.10 and okio 3.6,
+// whose metadata an older compiler refuses to read — which shows up as the
+// whole standard library going "unresolved reference".
+plugins {
+    id 'com.android.application' version '7.2.2' apply false
+    id 'org.jetbrains.kotlin.android' version '1.9.10' apply false
+}
+
+tasks.register('clean', Delete) {
+    delete rootProject.buildDir
+}
