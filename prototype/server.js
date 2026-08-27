@@ -297,15 +297,16 @@ function baseHeaders(nonce) {
     "media-src 'self' blob:",
     "connect-src 'self'",
     "font-src 'self'",
+    "frame-src 'self'",
     "base-uri 'none'",
     "form-action 'none'",
-    "frame-ancestors 'none'",
+    "frame-ancestors 'self'",
   ].join('; ');
 
   return {
     'content-security-policy': csp,
     'x-content-type-options': 'nosniff',
-    'x-frame-options': 'DENY',
+    'x-frame-options': 'SAMEORIGIN',
     'referrer-policy': 'no-referrer',
     'permissions-policy': 'camera=(self), microphone=(self), geolocation=(), interest-cohort=()',
     'cross-origin-opener-policy': 'same-origin',

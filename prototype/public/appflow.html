@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AER · Avlys AI app flow</title>
+<script>if (window !== window.top) document.documentElement.classList.add('embed');</script>
+<style>
+  :root {
+    --bg: #E8EEF2;
+    --shade: #c3ccd4;
+    --white: #ffffff;
+    --cyan: #4db8e8;
+    --ink: #4a5a66;
+    --g: #dfe6ec;
+    --s: #E8EEF2;
+    --live: #4db8e8;
+    --gold: #4db8e8;
+    --ok: #4db8e8;
+    --f: system-ui, "Segoe UI", sans-serif;
+    --m: system-ui, "Segoe UI", sans-serif;
+    --ease: cubic-bezier(.16,1,.3,1);
+    --neu: 8px 8px 16px #c3ccd4, -8px -8px 16px #ffffff;
+    --neu-in: inset 5px 5px 10px #c3ccd4, inset -5px -5px 10px #ffffff;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: radial-gradient(circle at 20% 10%, #f4f8fb, var(--bg) 42%);
+    color: var(--ink);
+    font-family: var(--f);
+    display: grid;
+    grid-template-columns: minmax(220px, 20rem) 1fr;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+  .rail {
+    background: var(--bg);
+    padding: 1.15rem 1.1rem 1.3rem;
+    display: flex; flex-direction: column; gap: .9rem;
+    overflow: auto;
+  }
+  .kicker {
+    font-size: .68rem; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--cyan); margin: 0; font-weight: 700;
+  }
+  h1 { font-size: 1.35rem; letter-spacing: -.02em; margin: 0; line-height: 1.15; }
+  .lede { margin: 0; color: var(--ink); opacity: .75; font-size: .88rem; }
+  .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .55rem; }
+  .step {
+    width: 100%; text-align: left;
+    display: grid; grid-template-columns: 2.2rem 1fr; gap: .55rem;
+    padding: .75rem .85rem; min-height: 48px;
+    border-radius: 16px;
+    box-shadow: var(--neu);
+    background: var(--bg);
+  }
+  .step .n { font-weight: 700; color: var(--cyan); }
+  .step .t { font-weight: 700; font-size: .9rem; }
+  .step .d { display: block; color: var(--ink); opacity: .65; font-size: .78rem; margin-top: .12rem; }
+  .step[aria-current="step"] {
+    box-shadow: var(--neu-in);
+    color: var(--ink);
+  }
+  .playrow { display: flex; gap: .55rem; margin-top: auto; }
+  .btn {
+    flex: 1; min-height: 44px; border-radius: 16px;
+    font-size: .68rem; letter-spacing: .12em;
+    text-transform: uppercase; font-weight: 700;
+    background: var(--bg); box-shadow: var(--neu); color: var(--ink);
+  }
+  .btn.solid { background: var(--cyan); color: #fff; box-shadow: 6px 6px 12px #b7c2cb; }
+  .btn:hover { filter: brightness(1.03); }
+
+  .stage {
+    padding: 1.1rem 1.2rem;
+    display: flex; flex-direction: column; min-width: 0;
+  }
+  .caption {
+    font-size: .68rem; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ink); opacity: .55; margin: 0 0 1rem;
+  }
+  .phones {
+    flex: 1; display: flex; gap: 2.2rem; justify-content: center;
+    align-items: center; flex-wrap: wrap; min-height: 0;
+  }
+  .col { display: flex; flex-direction: column; align-items: center; gap: .55rem; }
+  .col .who {
+    font-size: .68rem; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--ink); opacity: .55;
+  }
+
+  .phone {
+    width: 290px; height: 600px;
+    background: var(--bg);
+    border-radius: 36px;
+    box-shadow: var(--neu);
+    display: flex; flex-direction: column;
+    overflow: hidden; position: relative;
+    padding: 8px;
+  }
+  .sb {
+    height: 28px; display: flex; justify-content: space-between; align-items: center;
+    padding: 0 16px; color: var(--ink); font-size: 11px;
+    flex: none;
+  }
+  .screens { flex: 1; min-height: 0; position: relative; background: var(--bg); border-radius: 24px; box-shadow: var(--neu-in); overflow: hidden; }
+  .sc {
+    position: absolute; inset: 0; display: none; flex-direction: column;
+    color: var(--ink); overflow: auto;
+  }
+  .sc.on { display: flex; }
+  .hi { height: 16px; display: grid; place-items: center; flex: none; }
+  .hi i { width: 96px; height: 4px; background: var(--shade); border-radius: 4px; }
+
+  .pad { padding: 18px 18px 8px; }
+  .brand {
+    letter-spacing: .28em; font-size: 11px; color: var(--cyan); font-weight: 700;
+  }
+  .h { font-size: 28px; font-weight: 700; letter-spacing: -.03em; margin: .35rem 0 .4rem; line-height: 1.05; }
+  .sub { color: var(--ink); opacity: .7; font-size: 13px; line-height: 1.45; margin: 0; }
+  .card {
+    background: var(--bg); padding: 14px;
+    text-align: left; width: 100%; margin-top: 10px;
+    border-radius: 16px; box-shadow: var(--neu);
+  }
+  .card b { display: block; font-size: 16px; margin: .2rem 0 .15rem; }
+  .tag {
+    font-size: 10px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--cyan); font-weight: 700;
+  }
+  .tag.live { color: var(--cyan); }
+  .field {
+    width: 100%; background: var(--bg); border: 0;
+    color: var(--ink); padding: 10px 12px; margin-top: 6px;
+    border-radius: 12px; box-shadow: var(--neu-in);
+  }
+  .pin {
+    font-size: 32px; font-weight: 700; letter-spacing: .22em;
+    text-align: center; color: var(--cyan);
+    padding: .35rem; margin-top: 8px; background: var(--bg);
+    border-radius: 16px; box-shadow: var(--neu-in);
+  }
+  .cta {
+    width: 100%; margin-top: 12px; min-height: 44px;
+    background: var(--cyan); color: #fff; font-weight: 700; letter-spacing: .04em;
+    border-radius: 16px; box-shadow: 6px 6px 12px #b7c2cb;
+  }
+  .cta.ghost { background: var(--bg); color: var(--ink); box-shadow: var(--neu); }
+  .cta.red { background: var(--cyan); color: #fff; }
+  .row { display: flex; gap: 8px; }
+  .row .cta { flex: 1; }
+  .feed {
+    flex: 1; min-height: 160px; position: relative; overflow: hidden;
+    background:
+      linear-gradient(115deg, transparent 40%, rgba(255,255,255,.35) 50%, transparent 60%),
+      radial-gradient(circle at 40% 40%, #c5e8f6, #9bb8c7 70%);
+    animation: pan 6s linear infinite;
+    border-radius: 12px; margin: 8px; box-shadow: var(--neu-in);
+  }
+  .feed.off {
+    background: var(--bg);
+    display: grid; place-items: center; color: var(--ink); text-align: center;
+    font-size: 13px; padding: 20px; animation: none;
+  }
+  @keyframes pan { to { background-position: 120px 0, 0 0; } }
+  .br { position: absolute; inset: 12px; border: 1px solid rgba(255,255,255,.45);
+        clip-path: polygon(0 0,14px 0,14px 1px,1px 1px,1px 14px,0 14px,0 100%,0 calc(100% - 14px),1px calc(100% - 14px),1px calc(100% - 1px),14px calc(100% - 1px),14px 100%,100% 100%,100% calc(100% - 14px),calc(100% - 14px) calc(100% - 14px),calc(100% - 14px) calc(100% - 1px),calc(100% - 1px) calc(100% - 1px),calc(100% - 1px) calc(100% - 14px),100% calc(100% - 14px),100% 0,calc(100% - 14px) 0,calc(100% - 14px) 1px,calc(100% - 1px) 1px,calc(100% - 1px) 14px,100% 14px); }
+  .pill {
+    position: absolute; top: 10px; left: 10px;
+    font-size: 10px; letter-spacing: .12em;
+    text-transform: uppercase; background: var(--cyan); color: #fff;
+    padding: 3px 7px; border-radius: 8px;
+  }
+  .pill.gold { background: var(--white); color: var(--ink); left: auto; right: 10px; box-shadow: var(--neu); }
+  .bar { background: transparent; padding: 10px 12px 6px; flex: none; }
+  .stat { display: grid; grid-template-columns: 1fr 1fr 1fr; margin: 0 8px; border-radius: 12px; box-shadow: var(--neu); background: var(--bg); }
+  .stat div { padding: 8px 10px; }
+  .stat b { display: block; font-size: 13px; color: var(--cyan); }
+  .stat span { font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); opacity: .6; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; flex: 1; padding: 8px; }
+  .cell { background: var(--bg); position: relative; overflow: hidden; border-radius: 12px; box-shadow: var(--neu-in); }
+  .cell .nm {
+    position: absolute; left: 6px; bottom: 6px; right: 6px;
+    font-size: 11px; font-weight: 700; display: flex; justify-content: space-between;
+  }
+  .cell.off { background: var(--bg); }
+  .dots { display: flex; gap: 5px; justify-content: center; padding: 8px 0 0; }
+  .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--shade); }
+  .dots i.on { background: var(--cyan); }
+  .spin {
+    width: 36px; height: 36px; border: 3px solid var(--shade); border-top-color: var(--cyan);
+    border-radius: 50%; animation: rot .8s linear infinite; margin: 24px auto 12px;
+  }
+  @keyframes rot { to { transform: rotate(360deg); } }
+  .uid { font-size: 12px; letter-spacing: .08em; padding: 8px; text-align: center; border-radius: 12px; box-shadow: var(--neu-in); }
+
+  @media (max-width: 860px) {
+    body { grid-template-columns: 1fr; }
+    .rail { border-right: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<aside class="rail">
+  <p class="kicker">AER · climate dial · Avlys AI</p>
+  <h1>Mobile app flow</h1>
+  <p class="lede">Open the app, pair with the camera’s PIN, watch live. Tap a step or tap inside the phones.</p>
+  <ol class="steps" id="steps"></ol>
+  <div class="playrow">
+    <button class="btn solid" type="button" id="play">Play sequence</button>
+    <button class="btn" type="button" id="reset">Reset</button>
+  </div>
+</aside>
+
+<section class="stage">
+  <p class="caption" id="cap">Fig. 01 — Launch</p>
+  <div class="phones">
+
+    <div class="col">
+      <div class="phone" id="ph-v" aria-label="Avlys viewer phone">
+        <div class="sb"><span>9:41</span><span>AVLYS</span></div>
+        <div class="screens">
+          <div class="sc on" data-sc="splash">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+              <div class="brand">AVLYS AI</div>
+              <div class="h" style="margin:0;font-size:22px">Direct vision</div>
+              <p class="sub">Peer to peer. No cloud tape.</p>
+            </div>
+            <div class="dots"><i class="on"></i><i></i><i></i></div>
+            <div class="hi"><i></i></div>
+          </div>
+
+          <div class="sc" data-sc="home">
+            <div class="pad">
+              <div class="brand">AVLYS AI</div>
+              <div class="h">Cameras</div>
+              <p class="sub">Nothing paired yet. Add a camera from the unit’s screen, or turn this phone into one.</p>
+              <button class="card" type="button" data-go="pair">
+                <span class="tag">App</span><b>Watch a camera</b>
+                <span class="sub">UID + PIN. Live view, talk-back, capture on the device.</span>
+              </button>
+              <button class="card" type="button" data-go="device">
+                <span class="tag live">Device</span><b>Be the camera</b>
+                <span class="sub">Publish this lens. PIN stays on this screen.</span>
+              </button>
+            </div>
+            <div class="hi"><i></i></div>
+          </div>
+
+          <div class="sc" data-sc="pair">
+            <div class="pad">
+              <div class="brand">Add camera</div>
+              <div class="h">Pair</div>
+              <p class="sub">Type what the camera shows. The PIN never leaves this phone as plaintext.</p>
+              <div class="tag" style="margin-top:12px">Camera UID</div>
+              <div class="field">AVLYS-482917-KTM</div>
+              <div class="tag" style="margin-top:12px">Pairing PIN</div>
+              <div class="pin" id="pin-in">482917</div>
+              <button class="cta" type="button" data-go="connecting">Connect</button>
+              <button class="cta ghost" type="button" data-go="home">Back</button>
+            </div>
+            <div class="hi"><i></i></div>
+          </div>
+
+          <div class="sc" data-sc="connecting">
+            <div class="pad" style="text-align:center">
+              <div class="spin"></div>
+              <div class="h" style="font-size:20px">Finding a path</div>
+              <p class="sub" id="ice">Signalling UID…</p>
+              <div class="uid">AVLYS-482917-KTM</div>
+            </div>
+            <div class="hi"><i></i></div>
+          </div>
+
+          <div class="sc" data-sc="live">
+            <div class="feed"><span class="br"></span><span class="pill">● live</span><span class="pill gold">P2P direct</span></div>
+            <div class="stat">
+              <div><b>4.1 Mb/s</b><span>bitrate</span></div>
+              <div><b>1280×720</b><span>frame</span></div>
+              <div><b>18 ms</b><span>rtt</span></div>
+            </div>
+            <div class="bar">
+              <div class="row">
+                <button class="cta ghost" type="button">Listen</button>
+                <button class="cta red" type="button">Talk</button>
+              </div>
+              <div class="row">
+                <button class="cta ghost" type="button">Capture on camera</button>
+                <button class="cta ghost" type="button" data-go="grid">Grid</button>
+              </div>
+            </div>
+            <div class="hi"><i></i></div>
+          </div>
+
+          <div class="sc" data-sc="grid">
+            <div class="pad" style="padding-bottom:6px">
+              <div class="brand">AVLYS AI · operations</div>
+            </div>
+            <div class="grid2">
+              <div class="cell"><div class="feed" style="height:100%"></div><div class="nm"><span>Front Gate</span><span class="tag live">P2P</span></div></div>
+              <div class="cell"><div class="feed" style="height:100%;animation-duration:7s"></div><div class="nm"><span>Backyard</span><span class="tag live">P2P</span></div></div>
+              <div class="cell"><div class="feed" style="height:100%;animation-duration:5s"></div><div class="nm"><span>Warehouse</span><span class="tag live">P2P</span></div></div>
+              <div class="cell off"><div class="nm"><span>Dock Office</span><span class="tag" style="color:var(--live)">Lost</span></div></div>
+            </div>
+            <div class="bar">
+              <button class="cta ghost" type="button" data-go="live">Back to Front Gate</button>
+            </div>
+            <div class="hi"><i></i></div>
+          </div>
+        </div>
+      </div>
+      <span class="who">01 · Viewer app</span>
+    </div>
+
+    <div class="col">
+      <div class="phone" id="ph-c" aria-label="Avlys camera phone">
+        <div class="sb"><span>9:41</span><span>DEVICE</span></div>
+        <div class="screens">
+          <div class="sc on" data-sc="csplash">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <div class="brand">AVLYS AI</div>
+              <p class="sub">Waiting to publish</p>
+            </div>
+            <div class="hi"><i></i></div>
+          </div>
+          <div class="sc" data-sc="cwait">
+            <div class="feed off">Camera is off.<br>Start to show a PIN.</div>
+            <div class="bar">
+              <div class="uid">UID · —</div>
+              <button class="cta" type="button" data-go="clive">Start</button>
+            </div>
+            <div class="hi"><i></i></div>
+          </div>
+          <div class="sc" data-sc="clive">
+            <div class="feed"><span class="br"></span><span class="pill">● live</span><span class="pill gold">1 viewer</span></div>
+            <div class="bar">
+              <div class="tag live">pairing pin — read this on the other phone</div>
+              <div class="pin">482917</div>
+              <div class="uid" style="margin-top:8px">AVLYS-482917-KTM</div>
+              <div class="row" style="margin-top:8px">
+                <button class="cta ghost" type="button">Flip</button>
+                <button class="cta ghost" type="button">Capture</button>
+              </div>
+            </div>
+            <div class="hi"><i></i></div>
+          </div>
+        </div>
+      </div>
+      <span class="who">02 · Camera device</span>
+    </div>
+
+  </div>
+</section>
+
+<script>
+(function () {
+  var STEPS = [
+    { id: 'open', cap: 'Fig. 01 — Open Avlys AI', t: 'Open the app', d: 'Splash and home. Avlys AI wordmark only.', v: 'splash', c: 'csplash' },
+    { id: 'home', cap: 'Fig. 02 — Choose a role', t: 'Home', d: 'Watch a camera, or turn this phone into one.', v: 'home', c: 'cwait' },
+    { id: 'device', cap: 'Fig. 03 — Camera goes live', t: 'Start the camera', d: 'Device publishes. PIN is the pairing secret.', v: 'home', c: 'clive' },
+    { id: 'pair', cap: 'Fig. 04 — Enter UID + PIN', t: 'Pair', d: 'Viewer types what is on the camera glass.', v: 'pair', c: 'clive' },
+    { id: 'ice', cap: 'Fig. 05 — Handshake', t: 'Connect', d: 'Control plane matches UIDs. Media still idle.', v: 'connecting', c: 'clive' },
+    { id: 'live', cap: 'Fig. 06 — Live P2P', t: 'Live view', d: 'Talk, listen, capture on the camera hardware.', v: 'live', c: 'clive' },
+    { id: 'grid', cap: 'Fig. 07 — Multi-cam', t: 'Operations grid', d: 'Three direct feeds, one honest loss.', v: 'grid', c: 'clive' }
+  ];
+
+  var step = 0, timer = null, iceTimer = null;
+  var stepsEl = document.getElementById('steps');
+  var cap = document.getElementById('cap');
+
+  STEPS.forEach(function (s, i) {
+    var b = document.createElement('button');
+    b.className = 'step';
+    b.type = 'button';
+    b.innerHTML = '<span class="n">' + String(i + 1).padStart(2, '0') + '</span><span><span class="t">' + s.t + '</span><span class="d">' + s.d + '</span></span>';
+    b.onclick = function () { stop(); go(i); };
+    var li = document.createElement('li');
+    li.appendChild(b);
+    stepsEl.appendChild(li);
+  });
+
+  function show(phone, id) {
+    phone.querySelectorAll('.sc').forEach(function (el) {
+      el.classList.toggle('on', el.getAttribute('data-sc') === id);
+    });
+  }
+
+  function go(i) {
+    step = Math.max(0, Math.min(i, STEPS.length - 1));
+    var s = STEPS[step];
+    cap.textContent = s.cap;
+    [...stepsEl.querySelectorAll('.step')].forEach(function (el, n) {
+      el.setAttribute('aria-current', n === step ? 'step' : 'false');
+    });
+    show(document.getElementById('ph-v'), s.v);
+    show(document.getElementById('ph-c'), s.c);
+    if (iceTimer) { clearInterval(iceTimer); iceTimer = null; }
+    if (s.v === 'connecting') {
+      var msgs = ['Signalling UID…', 'Exchanging ICE…', 'DTLS handshake…', 'Direct path found'];
+      var n = 0;
+      var el = document.getElementById('ice');
+      el.textContent = msgs[0];
+      iceTimer = setInterval(function () {
+        n += 1;
+        if (n >= msgs.length) { clearInterval(iceTimer); iceTimer = null; go(step + 1); return; }
+        el.textContent = msgs[n];
+      }, 700);
+    }
+  }
+
+  function play() {
+    stop();
+    go(0);
+    var i = 0;
+    timer = setInterval(function () {
+      i += 1;
+      if (i >= STEPS.length) { stop(); return; }
+      if (STEPS[i].v === 'connecting') { /* ice auto-advances */ }
+      go(i);
+    }, 2200);
+    document.getElementById('play').textContent = 'Playing…';
+  }
+  function stop() {
+    if (timer) { clearInterval(timer); timer = null; }
+    document.getElementById('play').textContent = 'Play sequence';
+  }
+
+  document.getElementById('play').onclick = function () { timer ? stop() : play(); };
+  document.getElementById('reset').onclick = function () { stop(); go(0); };
+
+  document.querySelectorAll('[data-go]').forEach(function (el) {
+    el.addEventListener('click', function (e) {
+      e.stopPropagation();
+      stop();
+      var id = el.getAttribute('data-go');
+      var map = { home: 1, device: 2, pair: 3, connecting: 4, live: 5, grid: 6, clive: 2 };
+      if (map[id] != null) go(map[id]);
+    });
+  });
+
+  go(0);
+})();
+</script>
+</body>
+</html>
